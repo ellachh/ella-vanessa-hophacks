@@ -467,6 +467,44 @@ pub struct Secret {
     #[primary_key]
     pub name: String,
     pub value: String,
+    /// Whoever set it first. Any client can *call* a reducer, so without this
+    /// anyone could overwrite our key with garbage and break the demo. They
+    /// still could never read it — the table is private.
+    pub set_by: Identity,
+}
+
+/// Store a secret. First writer claims the name; only they can change it after.
+///
+///     spacetime call food-pickup set_secret '"xai_api_key"' '"xai-..."'
+///
+/// The value never reaches a client: private tables are skipped by codegen and
+/// unreadable over subscriptions.
+#[spacetimedb::reducer]
+pub fn set_secret(ctx: &ReducerContext, name: String, value: String) -> Result<(), String> {
+    check_len("Secret name", &name, 64)?;
+    if value.trim().is_empty() {
+        return Err("Secret value can't be empty.".to_string());
+    }
+
+    match ctx.db.secret().name().find(name.clone()) {
+        Some(existing) if existing.set_by != ctx.sender() => {
+            Err("That secret belongs to someone else.".to_string())
+        }
+        Some(existing) => {
+            ctx.db.secret().name().update(Secret { value, ..existing });
+            log::info!("secret updated: {name}");
+            Ok(())
+        }
+        None => {
+            ctx.db.secret().insert(Secret {
+                name: name.clone(),
+                value,
+                set_by: ctx.sender(),
+            });
+            log::info!("secret set: {name}");
+            Ok(())
+        }
+    }
 }
 
 #[derive(spacetimedb::SpacetimeType)]
