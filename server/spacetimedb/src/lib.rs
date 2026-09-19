@@ -457,11 +457,17 @@ pub fn reset_board(ctx: &ReducerContext) {
 }
 
 // ---------------------------------------------------------------------------
-// SPIKE — procedures. Delete this block if the spike fails.
+// Ask Scraps — the database calls a language model.
+//
+// Verified end to end against Maincloud: a procedure can hold a transaction
+// open briefly, close it, and then make an outbound HTTPS request. Reducers
+// cannot — they must stay deterministic, which is the same property that makes
+// two simultaneous claims resolve to exactly one winner. Procedures exist for
+// precisely the work reducers must refuse.
 // ---------------------------------------------------------------------------
 
-/// A private table: no `public`, so clients cannot read it and codegen skips it
-/// entirely. This is where an API key can live.
+/// Private: no `public`, so codegen skips it and no client can read a row.
+/// Writing is a different matter — see `set_secret`.
 #[spacetimedb::table(accessor = secret)]
 pub struct Secret {
     #[primary_key]
@@ -472,27 +478,23 @@ pub struct Secret {
 /// Store a secret for procedures to read.
 ///
 ///     spacetime call food-pickup set_secret '"xai_api_key"' '"xai-..."'
+///     spacetime call food-pickup set_secret '"xai_model"' '"grok-3"'
 ///
-/// **The value never reaches a client.** `secret` has no `public`, so it is
-/// skipped by codegen and unreachable over subscriptions — reading it is not
-/// something a client can do.
+/// **The value never reaches a client.** `secret` is private, so it is skipped
+/// by codegen and unreachable over subscriptions.
 ///
-/// Writing it is, though: any connected client may call any reducer, so anyone
-/// who knew the database name could overwrite our key and break the demo. An
-/// owner check would fix that, but adding a `set_by` column to a table that
-/// already exists needs a default value, and there is no meaningful default
-/// `Identity` — the migration is refused. The alternative was republishing with
-/// `--delete-data`, which wipes the verified board.
-///
-/// So: overwriting is possible, reading is not. That trade is fine for a demo
-/// on an unadvertised database and would not be for anything real.
+/// Writing it is possible for anyone who knows the database name, because any
+/// connected client may call any reducer. An owner check would fix that, but
+/// adding a `set_by` column to a table that already exists needs a default
+/// value and there is no meaningful default `Identity` — the migration is
+/// refused, and the alternative was wiping the board. Reading is what matters
+/// and reading is not possible.
 #[spacetimedb::reducer]
 pub fn set_secret(ctx: &ReducerContext, name: String, value: String) -> Result<(), String> {
     check_len("Secret name", &name, 64)?;
     if value.trim().is_empty() {
         return Err("Secret value can't be empty.".to_string());
     }
-
     match ctx.db.secret().name().find(name.clone()) {
         Some(existing) => {
             ctx.db.secret().name().update(Secret { value, ..existing });
@@ -506,58 +508,220 @@ pub fn set_secret(ctx: &ReducerContext, name: String, value: String) -> Result<(
     Ok(())
 }
 
+/// What the volunteer gets back.
 #[derive(spacetimedb::SpacetimeType)]
-pub struct Echo {
-    pub said: String,
-    pub open_listings: u64,
+pub struct Suggestion {
+    /// Prose, already written for a person. Render it as-is.
+    pub answer: String,
+    /// The pickup being recommended, if the model picked one. The client
+    /// selects this pin on the map.
+    pub listing_id: Option<u64>,
+    /// True when the model could not be reached. The client shows `answer`
+    /// either way; this only lets it style a failure differently.
+    pub failed: bool,
 }
 
-/// Can a procedure return a value to the caller, and read the database?
-#[spacetimedb::procedure]
-pub fn spike_echo(ctx: &mut spacetimedb::ProcedureContext, input: String) -> Echo {
-    let open = ctx.with_tx(|tx| tx.db.listing().iter().filter(|l| !l.completed).count());
-    Echo {
-        said: input,
-        open_listings: open as u64,
+const MAX_QUESTION: usize = 200;
+const MAX_CONTEXT_LISTINGS: usize = 25;
+const DEFAULT_MODEL: &str = "grok-3";
+
+fn fail(message: &str) -> Suggestion {
+    Suggestion {
+        answer: message.to_string(),
+        listing_id: None,
+        failed: true,
     }
 }
 
-/// Does an outbound HTTP call compile inside a procedure?
+/// A row of context for the model: what it is, how far, how long left.
+struct Nearby {
+    id: u64,
+    donor: String,
+    description: String,
+    miles: f64,
+    minutes_left: i64,
+}
+
+fn haversine_miles(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
+    let r = 3958.8_f64;
+    let to_rad = |d: f64| d * std::f64::consts::PI / 180.0;
+    let dlat = to_rad(lat2 - lat1);
+    let dlng = to_rad(lng2 - lng1);
+    let a = (dlat / 2.0).sin().powi(2)
+        + to_rad(lat1).cos() * to_rad(lat2).cos() * (dlng / 2.0).sin().powi(2);
+    2.0 * r * a.sqrt().asin()
+}
+
+/// Ask a question about what is on the board right now.
 ///
-/// Order matters: the guidance says perform network I/O BEFORE opening a
-/// transaction, never inside one. So we read what we need, let the transaction
-/// close, and only then call out.
+/// Open-ended on purpose: cravings ("something sweet"), distance ("what is
+/// closest"), timing ("what expires soonest"), or anything else a volunteer
+/// might actually type. The model is given the real listings with real
+/// distances from wherever the volunteer's pin is, so its answer is grounded in
+/// rows that exist rather than invented.
 #[spacetimedb::procedure]
-pub fn spike_http(ctx: &mut spacetimedb::ProcedureContext) -> String {
+pub fn ask_scraps(
+    ctx: &mut spacetimedb::ProcedureContext,
+    question: String,
+    lat: f64,
+    lng: f64,
+) -> Suggestion {
     use spacetimedb::http::{Body, Request};
 
-    // 1. Read inside a short transaction.
-    let key = ctx.with_tx(|tx| {
-        tx.db
+    let question = question.trim().to_string();
+    if question.is_empty() {
+        return fail("Ask me what you're in the mood for.");
+    }
+    if question.chars().count() > MAX_QUESTION {
+        return fail("That question is a bit long — try a shorter one.");
+    }
+    if !lat.is_finite() || !lng.is_finite() {
+        return fail("I don't know where you are — drag your pin onto the map.");
+    }
+
+    // --- Everything that touches the database happens here, then stops. ---
+    let (key, model, mut nearby) = ctx.with_tx(|tx| {
+        let key = tx
+            .db
             .secret()
             .name()
             .find("xai_api_key".to_string())
+            .map(|s| s.value);
+        let model = tx
+            .db
+            .secret()
+            .name()
+            .find("xai_model".to_string())
             .map(|s| s.value)
+            .unwrap_or_else(|| DEFAULT_MODEL.to_string());
+        let now = tx.timestamp;
+        let rows: Vec<Nearby> = tx
+            .db
+            .listing()
+            .completed()
+            .filter(false)
+            .filter(|l| l.claimed_by.is_none())
+            .map(|l| Nearby {
+                id: l.id,
+                donor: l.donor.clone(),
+                description: l.description.clone(),
+                miles: haversine_miles(lat, lng, l.lat, l.lng),
+                minutes_left: l
+                    .pickup_by
+                    .to_micros_since_unix_epoch()
+                    .saturating_sub(now.to_micros_since_unix_epoch())
+                    / 60_000_000,
+            })
+            .collect();
+        (key, model, rows)
     });
-    let Some(key) = key else {
-        return "no api key set".to_string();
-    };
+    // --- Transaction closed. Network from here on. ---
 
-    // 2. Transaction is closed. Now the network call.
+    let Some(key) = key else {
+        return fail("The assistant isn't configured yet.");
+    };
+    if nearby.is_empty() {
+        return fail("There's nothing open on the board right now.");
+    }
+
+    // Nearest first, then cap: the model does not need the whole city, and a
+    // shorter prompt is a cheaper and faster one.
+    nearby.sort_by(|a, b| a.miles.partial_cmp(&b.miles).unwrap_or(std::cmp::Ordering::Equal));
+    nearby.truncate(MAX_CONTEXT_LISTINGS);
+
+    let board = nearby
+        .iter()
+        .map(|n| {
+            format!(
+                "id={} | {} | {} | {:.1} mi away | {} min left",
+                n.id, n.donor, n.description, n.miles, n.minutes_left
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let system = "You help a food-rescue volunteer in Baltimore choose a pickup. \
+You are given every pickup currently open, with its distance from the volunteer and how long is left. \
+Answer their question in at most two short sentences, like a person would. \
+Only ever mention pickups from the list — never invent one. \
+If one pickup clearly answers them, recommend it and give its id. If none fits, say so plainly. \
+Reply with JSON only: {\"answer\": string, \"listing_id\": number or null}";
+
+    let user = format!("Open pickups:\n{board}\n\nQuestion: {question}");
+
+    // serde_json builds the body so quoting and escaping are handled. Donor and
+    // description are free-form input from anonymous clients; hand-rolling this
+    // string would be an injection waiting to happen.
+    let payload = serde_json::json!({
+        "model": model,
+        "temperature": 0.3,
+        "messages": [
+            { "role": "system", "content": system },
+            { "role": "user", "content": user },
+        ],
+    });
+
     let request = Request::builder()
         .method("POST")
         .uri("https://api.x.ai/v1/chat/completions")
         .header("authorization", format!("Bearer {key}"))
         .header("content-type", "application/json")
-        .body(Body::from_bytes(b"{}".to_vec()))
+        .body(Body::from_bytes(payload.to_string().into_bytes()))
         .unwrap();
 
-    match ctx.http.send(request) {
-        Ok(response) => {
-            let status = response.status();
-            let body = response.into_body().into_string_lossy();
-            format!("{}: {}", status.as_u16(), body)
+    let response = match ctx.http.send(request) {
+        Ok(r) => r,
+        Err(e) => {
+            log::error!("ask_scraps: request failed: {e}");
+            return fail("Couldn't reach the assistant just now.");
         }
-        Err(e) => format!("request failed: {e}"),
+    };
+
+    let status = response.status();
+    let body = response.into_body().into_string_lossy();
+    if !status.is_success() {
+        log::error!("ask_scraps: {} {}", status.as_u16(), body);
+        return fail("The assistant turned that one down. Try asking differently.");
+    }
+
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
+        log::error!("ask_scraps: unparseable response: {body}");
+        return fail("Couldn't make sense of the answer.");
+    };
+    let content = parsed["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if content.is_empty() {
+        return fail("The assistant didn't have an answer for that.");
+    }
+
+    // The model was asked for JSON. If it obliged, use the structured answer;
+    // if it wrapped it in prose or a code fence, fall back to showing what it
+    // said rather than an error — a slightly untidy answer beats none.
+    let inner = content
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+
+    match serde_json::from_str::<serde_json::Value>(inner) {
+        Ok(v) => {
+            let answer = v["answer"].as_str().unwrap_or(&content).trim().to_string();
+            let id = v["listing_id"].as_u64();
+            // Never point at a pickup that was not in the context we supplied.
+            let listing_id = id.filter(|i| nearby.iter().any(|n| n.id == *i));
+            Suggestion {
+                answer: if answer.is_empty() { content } else { answer },
+                listing_id,
+                failed: false,
+            }
+        }
+        Err(_) => Suggestion {
+            answer: content,
+            listing_id: None,
+            failed: false,
+        },
     }
 }
