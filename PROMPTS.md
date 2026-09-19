@@ -477,6 +477,126 @@ most impressive and the most likely to eat an afternoon.
 - Map eye-candy — clustering, custom tiles, animated fly-to. Zero signal here.
 - Anything that cannot be finished and demoed in one sitting.
 
+---
+
+## Phase 5 execution — we are doing all of it
+
+Time is not short, so the whole Tier 0 list is in play. That changes the plan in
+one important way: **most of these touch the schema, and the schema is frozen.**
+Doing them one at a time means regenerating bindings and interrupting V three
+separate times. Do them as one migration pass instead.
+
+### Before anything: tag the build that works
+
+```bash
+git tag demo-v1 && git push origin demo-v1
+```
+
+We have a submittable demo right now. Every schema change from here can break it.
+A tag means "go back to the thing that worked" is one command at hour 30, not a
+forensic exercise.
+
+Submit this build to Devpost now as well. The risk register is blunt: a late
+perfect build scores zero, and Devpost entries can be updated afterwards.
+
+### The schema freeze is being deliberately lifted
+
+PLAN.md froze the schema after Phase 1, and CLAUDE.md says "Two tables. Resist
+adding a third." We are going to four. That is a conscious override, not drift —
+both files get updated to say so and why, so nobody later reads the rule and
+assumes we broke it by accident.
+
+### Order, and why
+
+**1. `init` reducer replaces `seed.sh`.** Do this first, before anything that
+changes the schema. It is independent, and it makes every later step easier to
+test: `spacetime publish --delete-data=always` gives a clean seeded board in one
+command. Rehearsing a demo twenty times against a dirty database is miserable.
+
+**2. One schema pass — all table changes together.** Write these before
+republishing or regenerating anything:
+
+- `claim_attempt` event table (item 5). Rows are never stored client-side, only
+  `onInsert` fires. `claim_listing` writes one on both paths — won and lost.
+- `pickup_contact` table plus the `#[client_visibility_filter]` (item 6).
+  Donor address and phone move out of `listing` into a row only the claim holder
+  can read.
+- `#[index(btree)]` on `listing.claimed_by` (needed by item 8).
+
+Then **one** `spacetime publish`, **one** `spacetime generate`, **one** commit,
+**one** message to V. Batching is the whole point.
+
+**3. The `my_pickups` view** (item 8). Needs the index from step 2.
+
+**4. The counting invariant** (item 10) — at most 3 open claims per volunteer.
+Counts rows inside the transaction rather than checking one field. Pure reducer
+logic, no schema change, so it can land any time after step 2.
+
+### What to watch
+
+- **`claim_attempt` must be written on the losing path too.** The loser's
+  transaction returns `Err`, which rolls the transaction back — so verify the
+  event row actually survives, and if it does not, say so rather than working
+  around it. That finding is itself interesting and belongs in PLAN.md.
+- **Moving contact details out of `listing` is a breaking change** for V's
+  client. Flag it in the handoff message specifically, not just "schema changed."
+- **Four tables needs a line in CLAUDE.md** explaining the override, or the next
+  person to read it will think we ignored our own rule.
+
+### Ella's Phase 5 prompt
+
+```
+Read CLAUDE.md, PLAN.md and the Phase 5 section of PROMPTS.md first. Phases 0-4
+are essentially done: two tables, five reducers, all four screens, the race
+proven at the CLI and through the UI. Do not rebuild any of it.
+
+We are deepening our use of the database. The goal is a specific claim:
+logic, authorization, scheduling, visibility and broadcast all live inside
+SpacetimeDB, and the React client has no business logic in it. Every task
+below serves that sentence.
+
+FIRST: `git tag demo-v1 && git push origin demo-v1`. We have a working demo
+and everything below can break it.
+
+FILES I OWN: server/** and client/src/module_bindings/ (generated — regenerate,
+never hand-edit). In client/ I still own App.tsx, PostForm.tsx, MyPickups.tsx
+and my own CSS. I must not edit MapView.tsx, ListingPanel.tsx, Toast.tsx,
+NameGate.tsx, ConnectionGate.tsx, listing.ts, pickupWindow.ts or index.css.
+
+TASK 1 — replace server/seed.sh with an #[spacetimedb::reducer(init)] that
+seeds the 15 Baltimore listings on publish. Do this before any schema change.
+Verify `spacetime publish --delete-data=always` gives a clean seeded board.
+
+TASK 2 — ONE schema pass. Write all of these before republishing:
+  (a) a `claim_attempt` event table (listing_id, who, won, at). claim_listing
+      writes one on BOTH paths, won and lost. Event table rows are never stored
+      in the client cache; only onInsert fires. Check the losing write survives
+      the Err rollback and record what you find either way.
+  (b) a `pickup_contact` table holding donor address and phone, with a
+      #[client_visibility_filter] so only the volunteer holding the claim can
+      read it. Move those fields out of `listing`.
+  (c) #[index(btree)] on listing.claimed_by.
+Then one publish, one generate, one commit, and tell Vanessa — flagging
+specifically that contact fields moved out of `listing`, which breaks her
+client until she adapts.
+
+TASK 3 — a per-user #[view(accessor = my_pickups, public)] returning listings
+claimed by ctx.sender, so My Pickups is server-computed rather than filtered in
+React. Needs the index from task 2c.
+
+TASK 4 — an invariant: a volunteer may hold at most 3 open claims. Count rows
+inside the transaction. Reducer-only, no schema change.
+
+CONSTRAINTS: ctx.sender is the only trustworthy identity — never take an
+Identity as a reducer argument. Reducers stay deterministic: no network, no
+filesystem, no wall-clock time, no external RNG; use ctx.timestamp and
+ctx.random(). Keep returning Result<(), String> with user-facing copy, and use
+try_insert with ? rather than insert when returning Result. We are going from
+two tables to four, which overrides CLAUDE.md's "resist a third" — update
+CLAUDE.md and PLAN.md to record that override and the schema change, or the
+rule will read as broken rather than lifted.
+```
+
 ## V's visual track (runs in parallel, no backend dependency)
 
 Hand-drawn assets are worth real points and block on nobody. In rough order of
