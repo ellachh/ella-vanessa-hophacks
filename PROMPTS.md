@@ -748,11 +748,36 @@ Full plan and rationale: `PLAN.md`, "PHASE 6".
       both re-set names once after it lands.
 - [ ] `MapView.tsx` now takes a `children` slot — that was E's only change to
       your file, so E's location pin can live inside `<MapContainer>`.
-- [ ] If the AI spike clears: the ask panel. Collapsed by default, a text input,
-      the answer, and selecting the recommended pin on the map. It must degrade
-      to a plain message when the call fails.
+- [x] ~~If the AI spike clears: the ask panel.~~ **Reassigned to E** — V is on
+      another feature, so E is building the ask panel. That means E owns
+      `AskPanel.tsx` and `AskPanel.css` (both new) on top of `App.tsx`.
+      Nothing of V's changes.
 
 ## The rule for both
 
 Stop when the next step cannot be finished properly. The build is verified right
 now; every item above is optional and none of them is worth breaking it.
+
+
+---
+
+## Ownership change — the ask panel moved to E
+
+The spike cleared and `ask_scraps` is live, so the panel is being built now
+rather than waiting. V was mid-feature, so E took it.
+
+| File | Owner | Note |
+|---|---|---|
+| `AskPanel.tsx`, `AskPanel.css` | **E** (new) | The assistant UI |
+| `App.tsx` | **E** | Mounts it; already E's this phase |
+| Everything else in `client/src` | **V** | Untouched by this |
+
+**Design was mocked before it was built**, against the warm-paper tokens — no
+new colours, `--open` for the recommendation and `--taken` for failure, the same
+`.btn` and hairline treatment as the rest of the panel. It sits at the top of
+the existing right panel above the listing detail, always visible rather than
+collapsed, because a hidden feature is one a judge never sees.
+
+Three suggestion chips ("something sweet", "what's closest", "expiring soon")
+because typing on stage is slow; the free-text input stays for a judge who wants
+to ask their own question, which is the better moment anyway.
