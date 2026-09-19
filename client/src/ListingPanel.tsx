@@ -5,7 +5,7 @@ import type { Identity } from 'spacetimedb'
 import { listingState } from './listing'
 import { sameIdentity } from './identity'
 import { isSafePhotoSrc } from './photo'
-import { photoFor } from './queries'
+import { photoFor, storePhotoFor } from './queries'
 import StressTest from './StressTest'
 import { reducers, tables } from './module_bindings'
 import type { Listing, User } from './module_bindings/types'
@@ -40,6 +40,8 @@ export default function ListingPanel({
   // showing. Hooks cannot be called conditionally, hence the null case.
   const [photos] = useTable(photoFor(listing?.id ?? null))
   const [profiles] = useTable(tables.donorProfile)
+  // The storefront picture, scoped to whoever posted the selected listing.
+  const [storePhotos] = useTable(storePhotoFor(listing?.postedBy))
 
   if (!listing) {
     return (
@@ -54,6 +56,7 @@ export default function ListingPanel({
   // an `src`. The module checks it too; neither check is the only one.
   const photo = photos.find((p) => isSafePhotoSrc(p.dataUri))
   const shopfront = profiles.find((p) => sameIdentity(p.identity, listing.postedBy))
+  const storePhoto = storePhotos.find((p) => isSafePhotoSrc(p.dataUri))?.dataUri
   const holder = listing.claimedBy
     ? users.find((u) => u.identity.isEqual(listing.claimedBy!))?.name
     : undefined
@@ -91,7 +94,14 @@ export default function ListingPanel({
       <p className="panel__desc">{listing.description}</p>
       {/* JSX children, so React escapes it. Never build this with an HTML
           string — the same rule that governs the map popups. */}
-      {shopfront?.bio && <p className="panel__bio">{shopfront.bio}</p>}
+      {(storePhoto || shopfront?.bio) && (
+        <div className="store">
+          {storePhoto && (
+            <img className="store__photo" src={storePhoto} alt={listing.donor} />
+          )}
+          {shopfront?.bio && <p className="panel__bio store__bio">{shopfront.bio}</p>}
+        </div>
+      )}
       {shopfront?.address && <p className="panel__meta">{shopfront.address}</p>}
       <p className={`panel__when panel__when--${urgencyOf(listing.pickupBy)}`}>
         {timeLeft(listing.pickupBy)}

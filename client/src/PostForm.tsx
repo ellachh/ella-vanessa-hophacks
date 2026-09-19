@@ -146,14 +146,14 @@ export default function PostForm({
         </header>
 
         <label className="post__label" htmlFor="donor">
-          Donor
+          Store
         </label>
         <input
           id="donor"
           className="post__input"
           value={donor}
           maxLength={MAX_DONOR}
-          placeholder="Pratt Street Bakehouse"
+          placeholder="Store name"
           onChange={(e) => setTypedDonor(e.target.value)}
           autoFocus
         />

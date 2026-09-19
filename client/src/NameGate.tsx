@@ -35,14 +35,14 @@ export default function NameGate({ onDone }: { onDone: () => void }) {
         <h1 className="gate__title">Scraps</h1>
         <p className="gate__sub">Baltimore food rescue board</p>
         <label className="gate__label" htmlFor="name">
-          What should volunteers call you?
+          What should we call you?
         </label>
         <input
           id="name"
           className="gate__input"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Vanessa"
+          placeholder="Name"
           autoFocus
         />
         {error && <p className="gate__error">{error}</p>}

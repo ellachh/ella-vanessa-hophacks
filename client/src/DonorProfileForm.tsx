@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useProcedure, useReducer } from 'spacetimedb/react'
 
 import MapPicker, { BALTIMORE } from './MapPicker'
+import PhotoInput from './PhotoInput'
 import { procedures, reducers } from './module_bindings'
 import type { DonorProfile } from './module_bindings/types'
 import './DonorProfile.css'
@@ -13,9 +14,10 @@ const MAX_BIO = 240
 const MAX_ADDRESS = 120
 
 /**
- * A restaurant's standing details: name, what they are, where they are.
+ * A store's standing details: name, what they are, where they are, and a
+ * photo of the place.
  *
- * The point is that a donor fills this in once. `PostForm` reads it back and
+ * The point is that a store fills this in once. `PostForm` reads it back and
  * pre-fills the name and the pin, so posting surplus food is a description and
  * a time — not the same three fields retyped every evening.
  *
@@ -26,14 +28,20 @@ const MAX_ADDRESS = 120
  */
 export default function DonorProfileForm({
   existing,
+  existingPhoto,
   onClose,
   onError,
 }: {
   existing: DonorProfile | undefined
+  /** The store's current photo, or '' for none. Lives in its own table, so it
+   *  arrives as a separate subscription and saves through its own reducer. */
+  existingPhoto: string
   onClose: () => void
   onError: (message: string) => void
 }) {
   const save = useReducer(reducers.saveDonorProfile)
+  const savePhoto = useReducer(reducers.saveDonorPhoto)
+  const removePhoto = useReducer(reducers.removeDonorPhoto)
   const geocode = useProcedure(procedures.geocode)
 
   const [name, setName] = useState(existing?.name ?? '')
@@ -42,6 +50,7 @@ export default function DonorProfileForm({
   const [position, setPosition] = useState<[number, number]>(
     existing ? [existing.lat, existing.lng] : BALTIMORE,
   )
+  const [photo, setPhoto] = useState(existingPhoto)
 
   const [busy, setBusy] = useState(false)
   const [looking, setLooking] = useState(false)
@@ -85,6 +94,13 @@ export default function DonorProfileForm({
         lat: position[0],
         lng: position[1],
       })
+
+      // Separate table, separate reducer. Only written when it changed: a
+      // no-op rewrite would still replicate to everyone subscribed to it.
+      if (photo !== existingPhoto) {
+        if (photo) await savePhoto({ dataUri: photo })
+        else await removePhoto({})
+      }
       onClose()
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err))
@@ -97,7 +113,7 @@ export default function DonorProfileForm({
     <div className="modal" role="dialog" aria-modal="true" aria-label="Your restaurant">
       <form className="post" onSubmit={submit}>
         <header className="post__head">
-          <h2 className="post__title">Your restaurant</h2>
+          <h2 className="post__title">Your store</h2>
           <button type="button" className="post__close" onClick={onClose} aria-label="Close">
             ×
           </button>
@@ -115,7 +131,7 @@ export default function DonorProfileForm({
           className="post__input"
           value={name}
           maxLength={MAX_NAME}
-          placeholder="Pratt Street Bakehouse"
+          placeholder="Store name"
           onChange={(e) => setName(e.target.value)}
           autoFocus
         />
@@ -132,7 +148,7 @@ export default function DonorProfileForm({
           value={bio}
           maxLength={MAX_BIO}
           rows={2}
-          placeholder="Neighbourhood bakery. Surplus most evenings after seven."
+          placeholder="A line about your store"
           onChange={(e) => setBio(e.target.value)}
         />
 
@@ -145,7 +161,7 @@ export default function DonorProfileForm({
             className="post__input geo__input"
             value={address}
             maxLength={MAX_ADDRESS}
-            placeholder="1200 E Pratt St, Baltimore MD"
+            placeholder="Street address"
             onChange={(e) => {
               setAddress(e.target.value)
               setFound(null)
@@ -173,6 +189,16 @@ export default function DonorProfileForm({
           Where <span className="post__count">or click the map to move the pin</span>
         </span>
         <MapPicker position={position} onPick={setPosition} recentreToken={recentre} />
+
+        <span className="post__label">Photo of your store</span>
+        <PhotoInput
+          value={photo}
+          onChange={setPhoto}
+          onError={onError}
+          label="Add a photo of your store"
+          hint="Shown to anyone looking at your pickups"
+          alt="Your store"
+        />
 
         <div className="post__actions">
           <button type="button" className="btn" onClick={onClose} disabled={busy}>

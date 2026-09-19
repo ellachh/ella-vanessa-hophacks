@@ -132,6 +132,22 @@ pub struct ListingPhoto {
     pub posted_by: Identity,
 }
 
+/// A photo of the store itself — the shopfront, not the food.
+///
+/// Its own table for the same reason `listing_photo` is one: `donor_profile`
+/// is subscribed wholesale in three places, so a photo column on it would push
+/// every store's picture to every client on connect. This is subscribed scoped
+/// to the store actually being looked at.
+///
+/// Keyed by `identity` and only ever written for `ctx.sender()`, so there is no
+/// ownership check here to forget — a client can only write its own row.
+#[spacetimedb::table(accessor = donor_photo, public)]
+pub struct DonorPhoto {
+    #[primary_key]
+    pub identity: Identity,
+    pub data_uri: String,
+}
+
 // ---------------------------------------------------------------------------
 // Validation — user-facing copy. These strings are read aloud during the demo.
 // ---------------------------------------------------------------------------
@@ -888,6 +904,35 @@ pub fn save_donor_profile(
         Some(_) => ctx.db.donor_profile().identity().update(row),
         None => ctx.db.donor_profile().insert(row),
     };
+    Ok(())
+}
+
+/// Save or replace the store's own photo.
+///
+/// Takes no identity: the row is keyed on `ctx.sender()`, which a client
+/// cannot forge. That is the whole access-control story for this table.
+#[spacetimedb::reducer]
+pub fn save_donor_photo(ctx: &ReducerContext, data_uri: String) -> Result<(), String> {
+    check_photo(&data_uri)?;
+
+    let row = DonorPhoto {
+        identity: ctx.sender(),
+        data_uri,
+    };
+    match ctx.db.donor_photo().identity().find(ctx.sender()) {
+        Some(_) => ctx.db.donor_photo().identity().update(row),
+        None => ctx.db.donor_photo().insert(row),
+    };
+    Ok(())
+}
+
+/// Take the store photo down again.
+#[spacetimedb::reducer]
+pub fn remove_donor_photo(ctx: &ReducerContext) -> Result<(), String> {
+    if ctx.db.donor_photo().identity().find(ctx.sender()).is_none() {
+        return Err("There's no store photo to remove.".to_string());
+    }
+    ctx.db.donor_photo().identity().delete(ctx.sender());
     Ok(())
 }
 
