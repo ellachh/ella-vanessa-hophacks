@@ -1,19 +1,36 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
+import ConnectionGate from './ConnectionGate'
 import ListingPanel from './ListingPanel'
-import MapView, { isPlottable } from './MapView'
-import NameGate from './NameGate'
+import MapView from './MapView'
+import { isPlottable } from './listing'
 import Toast from './Toast'
 import { sameIdentity } from './identity'
 import { tables } from './module_bindings'
 
+/**
+ * Composition only. Connection, loading and name-entry live in ConnectionGate,
+ * so Board never renders until there is a connected, named volunteer and rows
+ * have arrived.
+ *
+ * Ella owns this file for Phase 3 — new views mount inside <ConnectionGate>
+ * alongside <Board />.
+ */
 export default function App() {
-  const { isActive, identity, connectionError } = useSpacetimeDB()
+  return (
+    <ConnectionGate>
+      <Board />
+    </ConnectionGate>
+  )
+}
 
-  // These two calls ARE the subscription. No fetching, no polling, no store —
-  // rows change on the server, these arrays change, React re-renders.
-  const [listings, listingsReady] = useTable(tables.listing)
+function Board() {
+  const { identity } = useSpacetimeDB()
+
+  // This call IS the subscription. No fetching, no polling, no store — rows
+  // change on the server, this array changes, React re-renders.
+  const [listings] = useTable(tables.listing)
   const [users] = useTable(tables.user)
 
   const [selectedId, setSelectedId] = useState<bigint | null>(null)
@@ -29,24 +46,10 @@ export default function App() {
     () => board.find((l) => l.id === selectedId) ?? null,
     [board, selectedId],
   )
-  const named = useMemo(
-    () => users.some((u) => sameIdentity(u.identity, identity)),
-    [users, identity],
-  )
   const mine = useMemo(
     () => board.filter((l) => sameIdentity(l.claimedBy, identity)),
     [board, identity],
   )
-
-  if (connectionError) {
-    return <div className="gate"><p className="gate__error">{connectionError.message}</p></div>
-  }
-  if (!isActive || !listingsReady) {
-    return <div className="gate"><p className="gate__sub">Connecting…</p></div>
-  }
-  if (!named) {
-    return <NameGate onDone={() => undefined} />
-  }
 
   return (
     <div className="app">
@@ -61,6 +64,7 @@ export default function App() {
         <div className="app__map">
           <MapView
             listings={board}
+            users={users}
             me={identity}
             selectedId={selectedId}
             onSelect={setSelectedId}
