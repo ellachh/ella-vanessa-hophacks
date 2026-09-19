@@ -38,6 +38,7 @@ import ArmExpiryReducer from "./arm_expiry_reducer";
 import ClaimListingReducer from "./claim_listing_reducer";
 import CompleteListingReducer from "./complete_listing_reducer";
 import PostListingReducer from "./post_listing_reducer";
+import ResetBoardReducer from "./reset_board_reducer";
 import SeedBoardReducer from "./seed_board_reducer";
 import SetNameReducer from "./set_name_reducer";
 import UnclaimListingReducer from "./unclaim_listing_reducer";
@@ -102,6 +103,7 @@ const reducersSchema = __reducers(
   __reducerSchema("claim_listing", ClaimListingReducer),
   __reducerSchema("complete_listing", CompleteListingReducer),
   __reducerSchema("post_listing", PostListingReducer),
+  __reducerSchema("reset_board", ResetBoardReducer),
   __reducerSchema("seed_board", SeedBoardReducer),
   __reducerSchema("set_name", SetNameReducer),
   __reducerSchema("unclaim_listing", UnclaimListingReducer),
