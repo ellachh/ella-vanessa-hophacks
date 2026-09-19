@@ -2,38 +2,66 @@
 
 > ## STATUS — read this before anything else
 >
-> **`main` is the demo build and it is green.** Five tables, one view, eleven
-> reducers, one procedure (`ask_scraps`), and the Ask panel. The branch below
-> merges cleanly on top and takes that to seven tables, fifteen reducers, three
-> procedures and 43 tests — once it is published.
+> *(This block was stale after the last merge — it still described main as
+> five tables awaiting a publish. Rewritten against what is actually there.)*
 >
-> **A known-good fallback exists: the `demo-v1` branch.** It points at the last
-> verified-working commit before the Phase 5 schema work. **Do not delete or
-> force-push it.** (A branch rather than a tag because annotated tag pushes fail
-> through the web sandbox's proxy.)
+> **`main` carries everything and is green.** Seven tables, one view, fifteen
+> reducers, three procedures, the Ask panel, photos, shopfronts and the
+> geocoder. Published to Maincloud, bindings regenerated, Netlify deploying
+> from it.
 >
-> ### ⚠️ Branch `claude/elegant-archimedes-vqqdy1` needs a publish + regenerate
+> **Netlify auto-deploys `main`**, so a broken push there is a broken public
+> link. Run `npm run build` before pushing to it. A failed build does not
+> deploy and the last good one stays up.
 >
-> It adds photos, donor profiles, address geocoding and a Grok description
-> suggestion. **The Rust compiles for `wasm32-unknown-unknown`. The client does
-> not typecheck yet** — it calls four things that only exist after
-> `spacetime generate` has seen the new module. That is the whole gap: every
-> one of the ten `tsc` errors is "this generated symbol does not exist", and
-> none of them is a real type error.
+> **A known-good fallback exists: the `demo-v1` branch.** Last verified commit
+> before the Phase 5 schema work. **Do not delete or force-push it.**
 >
-> Two commands on a laptop with the 2.10.x CLI close it:
+> ### ⚠️ `claude/elegant-archimedes-vqqdy1` needs one more publish + regenerate
+>
+> It renames the roles in the UI, makes the placeholders generic, and adds a
+> store photo — which is a new table, `donor_photo`, taking the module to
+> **eight tables and seventeen reducers**.
+>
+> Four `tsc` errors right now, all "generated symbol does not exist":
+> `donorPhoto`, `saveDonorPhoto`, `removeDonorPhoto`. Rust builds for
+> `wasm32-unknown-unknown`; 43 tests pass.
 >
 > ```bash
 > cd server/spacetimedb && spacetime publish food-pickup --yes
 > spacetime generate --lang typescript --out-dir ../../client/src/module_bindings
+> cd ../../client && npx tsc -b && npm test && npm run build
 > ```
 >
-> Then `cd client && npx tsc -b && npm test && npm run build` should be clean.
-> **Do not merge to `main` before that passes.** See "Phase 7" below.
+> `donor_photo` is a **new table**, so the migration is clean — no
+> `--delete-data`, and the xAI key in `secret` survives.
 >
-> **Nothing is submitted to Devpost yet.** That is still the only failure mode
-> that cannot be recovered from. The repo moved to `ellachh/scraps-hophacks`, so
-> the link in `docs/DEVPOST.md` needs updating before it goes up.
+> ### Naming: the UI says Store, the schema says donor
+>
+> Deliberate. Renaming a live table or column is a migration this database
+> will refuse, and the schema word never reaches a user. So `donor_profile`,
+> `donor_photo` and `listing.donor` keep their names while the interface says
+> Store, and the mode union in `App.tsx` is still `'volunteer' | 'donor'`.
+> Do not "fix" the mismatch by renaming the schema.
+>
+> ### Still not exercised against the live database
+>
+> 1. **Photo size.** `MAX_PHOTO_CHARS` is 140_000, chosen conservatively, not
+>    measured against a documented row limit. Post one listing with one photo
+>    before posting several. If refused, lower it in `lib.rs` *and* `photo.ts`
+>    together and drop `MAX_EDGE` to 480 — the client cap must never exceed
+>    the module's.
+> 2. **Whether Maincloud reaches `nominatim.openstreetmap.org`**, and whether
+>    its shared IP trips the rate limit. Fails to a sentence either way, and
+>    the pin drop still works — so keep the address lookup off the demo path.
+> 3. **Does `grok-3` accept image input?** `DEFAULT_MODEL` is `grok-3` and the
+>    caption feature sends an `image_url`. If it 400s, set `xai_model` to a
+>    vision model — note that switches `ask_scraps` too, since they share it.
+> 4. **The stacked panel with a photo in it.** `.panel--stack .panel__photo`
+>    caps it at 150px so the claim button cannot fall below the fold. Reasoned,
+>    not seen.
+>
+> **Nothing is submitted to Devpost yet.** Still the only unrecoverable one.
 >
 > Phase 5 plans and both per-person briefs live in `PROMPTS.md`.
 
