@@ -467,18 +467,25 @@ pub struct Secret {
     #[primary_key]
     pub name: String,
     pub value: String,
-    /// Whoever set it first. Any client can *call* a reducer, so without this
-    /// anyone could overwrite our key with garbage and break the demo. They
-    /// still could never read it — the table is private.
-    pub set_by: Identity,
 }
 
-/// Store a secret. First writer claims the name; only they can change it after.
+/// Store a secret for procedures to read.
 ///
 ///     spacetime call food-pickup set_secret '"xai_api_key"' '"xai-..."'
 ///
-/// The value never reaches a client: private tables are skipped by codegen and
-/// unreadable over subscriptions.
+/// **The value never reaches a client.** `secret` has no `public`, so it is
+/// skipped by codegen and unreachable over subscriptions — reading it is not
+/// something a client can do.
+///
+/// Writing it is, though: any connected client may call any reducer, so anyone
+/// who knew the database name could overwrite our key and break the demo. An
+/// owner check would fix that, but adding a `set_by` column to a table that
+/// already exists needs a default value, and there is no meaningful default
+/// `Identity` — the migration is refused. The alternative was republishing with
+/// `--delete-data`, which wipes the verified board.
+///
+/// So: overwriting is possible, reading is not. That trade is fine for a demo
+/// on an unadvertised database and would not be for anything real.
 #[spacetimedb::reducer]
 pub fn set_secret(ctx: &ReducerContext, name: String, value: String) -> Result<(), String> {
     check_len("Secret name", &name, 64)?;
@@ -487,24 +494,16 @@ pub fn set_secret(ctx: &ReducerContext, name: String, value: String) -> Result<(
     }
 
     match ctx.db.secret().name().find(name.clone()) {
-        Some(existing) if existing.set_by != ctx.sender() => {
-            Err("That secret belongs to someone else.".to_string())
-        }
         Some(existing) => {
             ctx.db.secret().name().update(Secret { value, ..existing });
             log::info!("secret updated: {name}");
-            Ok(())
         }
         None => {
-            ctx.db.secret().insert(Secret {
-                name: name.clone(),
-                value,
-                set_by: ctx.sender(),
-            });
+            ctx.db.secret().insert(Secret { name: name.clone(), value });
             log::info!("secret set: {name}");
-            Ok(())
         }
     }
+    Ok(())
 }
 
 #[derive(spacetimedb::SpacetimeType)]

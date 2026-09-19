@@ -385,7 +385,14 @@ All genuinely interesting client work happens in TypeScript.
    claiming row-level security in the pitch while having none. **Both tables
    being `public` means genuinely world-readable; never put anything sensitive
    in them.**
-9. **`init` only fires on a fresh database.** Republishing over an existing one
+9. **Adding a column to a table that already exists needs `#[default(...)]`.**
+   Publishing fails with *"Adding a column X to table Y requires a default value
+   annotation"*, and the only way past it is `--delete-data`, which wipes
+   everything. There is no meaningful default for an `Identity`, so a column of
+   that type cannot be added to a live table at all. **Design tables before the
+   first publish, or accept the field is not gettable without a data wipe.**
+   New *tables* migrate fine; new *columns* on old tables do not.
+10. **`init` only fires on a fresh database.** Republishing over an existing one
    runs neither the seed nor the expiry timer. `seed_board` and `arm_expiry`
    exist to do each on a live database without `--delete-data=always`. Both are
    idempotent.
