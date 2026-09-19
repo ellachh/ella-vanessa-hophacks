@@ -140,19 +140,52 @@ ever be committed.
 
 ### Terminal 2 — in the repo (these are path-sensitive)
 
-```bash
-cd ~/path/to/ella-vanessa-hophacks
+**The rule: `spacetime` commands run from `server/`. `cargo` commands run from
+`server/spacetimedb/`.**
 
-spacetime init --lang rust server      # from REPO ROOT, creates server/
-cd server
-spacetime publish <module-name>        # from server/, builds the module here
-spacetime generate --lang typescript \
-  --out-dir ../client/src/module_bindings   # from server/, writes into client/
+`server/spacetime.json` is the project config —
+`{"server": "maincloud", "module-path": "./spacetimedb"}` — so the CLI, run from
+`server/`, already knows where the Cargo project is. Only `cargo` itself needs
+the deeper directory.
+
+```bash
+cd ~/path/to/ella-vanessa-hophacks/server
+
+spacetime publish food-pickup --yes
+spacetime generate --lang typescript --out-dir ../client/src/module_bindings
 ```
 
-`init`, `publish` and `generate` all resolve paths relative to where you run
-them. Run them in the wrong directory and you get a module scaffolded in your
-home folder or bindings written somewhere Vanessa will never find.
+```bash
+cd ~/path/to/ella-vanessa-hophacks/server/spacetimedb
+
+cargo check      # cargo needs Cargo.toml, which lives HERE
+```
+
+### Why `../client/...` and not `../../client/...`
+
+`server/` is the **spacetime project root** — it holds `spacetime.json`.
+`server/spacetimedb/` is only the **Cargo crate**, named by that file's
+`module-path`. The CLI is run from the project root, where it reads
+`spacetime.json` and finds the crate itself. You never `cd` into
+`server/spacetimedb/` to run `spacetime`; you only go there for `cargo`.
+
+So from `server/`, one `..` reaches the repo root and
+`../client/src/module_bindings` is correct. `../../client/...` would climb above
+the repo entirely.
+
+Verify empirically after the first generate — this is a thirty-second check that
+settles any doubt:
+
+```bash
+ls ../client/src/module_bindings     # expect generated .ts files
+find .. -name module_bindings -type d   # expect exactly ONE hit, under client/
+```
+
+If a stray `server/client/` ever appears, delete it and re-run from `server/`.
+
+Getting `--out-dir` wrong fails silently — it writes bindings to a real but
+wrong directory and V never sees them. From `server/` it is
+`../client/src/module_bindings`.
 
 ### Anywhere — these talk to the server by module name
 
@@ -228,12 +261,12 @@ and fix the root file so the two sessions stay in sync.
 This is the most important 2 hours of the event. Do it side by side, not split.
 
 - [ ] **E+V** Agree the final schema from `CLAUDE.md`. Argue about it now, not later.
-- [ ] **E** `spacetime init` a Rust module in `server/`
+- [x] **E** `spacetime init` a Rust module in `server/` — DONE
 - [ ] **E** Write the two table definitions (`listing`, `user`) — copy exact macro
       syntax from the current quickstart, not from `CLAUDE.md`
 - [ ] **E** Write all five reducers as **empty stubs** that compile and do nothing
 - [ ] **E** `spacetime publish` the stub module — confirm it publishes
-- [ ] **E** `spacetime generate --lang typescript --out-dir client/src/module_bindings`
+- [ ] **E** From `server/`: `spacetime generate --lang typescript --out-dir ../client/src/module_bindings`
 - [ ] **E** Commit the generated bindings
 - [x] **V** In parallel: scaffold `client/` — Vite + React + TypeScript
 - [x] **V** Install deps: SpacetimeDB TS SDK, `leaflet`, `react-leaflet`
