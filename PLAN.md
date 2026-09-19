@@ -985,6 +985,58 @@ for. Finishing beats adding, every time, from here to submission.
 
 ---
 
+## Donor mode — the one late request that was built
+
+V asked again for the role split after the verification layer was declined, and
+this one is different in kind: **a role switch claims nothing.** It is a view
+over data we already hold, not an assertion that we check anyone's identity.
+Verification stays cut for the reasons below; the split shipped.
+
+**Volunteer / Donor switch in the header.** Donor mode lists what you posted and
+what has happened to each — waiting for a volunteer, or the name of the person
+collecting it. No new table, no new query, no new reducer: `posted_by` is
+already on every listing, so it is the same subscription read by who posted
+rather than who claimed.
+
+**Worth adding to the demo.** When a volunteer claims one of these, the row
+changes under the donor with no refresh. It is the contested-claim moment seen
+from the other side of the transaction, and it costs nothing to show.
+
+Two behaviours that are not obvious from the code:
+
+- **Switching to donor mode clears the travel radius.** The radius is a
+  volunteer's "how far will I drive"; a restaurant's own listings must never be
+  hidden from them by it.
+- **"Post a pickup" appears only in donor mode**, and "Your pickups" only in
+  volunteer mode. Having both in both was what made the split feel cosmetic — a
+  volunteer collects food, they do not put it up.
+
+## Header crowding — fixed, and the cause is worth remembering
+
+Five groups had accumulated in the header: title, tagline, count, radius filter,
+and three action buttons. At 1280px the tagline, the count and both buttons all
+wrapped, and the radius filter's count orphaned onto a second line — which made
+the bar **82px in volunteer mode and 56px in donor mode**, so every mode switch
+shifted the whole layout.
+
+The radius filter moved onto the map as a floating control, where it belongs:
+it is a map control, not a title-bar control. Header is now 56px in every mode.
+
+**The cause is that each of us added one thing to the header and neither
+addition was wrong on its own.** Nothing in the ownership table catches that.
+If either of us adds a third header element, look at it at 1280px first.
+
+## The App.tsx collision finally happened
+
+The Phase 3 ownership table gave `App.tsx` to E precisely to avoid this, and it
+happened anyway — because the mode switch has to live in the composition root,
+which is the same place the radius controls do. Ella's `YouAreHere` import and
+V's `RestaurantView` import landed in the same block.
+
+Resolved keeping both; nothing of Ella's was dropped. The lesson is not that the
+table was wrong, it is that a composition root cannot be owned by one person
+once both are adding top-level UI.
+
 ## Feature requests raised late — all three declined, with reasons
 
 V asked for three additions after the build was verified. Recording them here

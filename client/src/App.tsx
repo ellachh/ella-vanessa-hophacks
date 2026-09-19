@@ -104,9 +104,6 @@ function Board() {
             ? `${board.filter((l) => sameIdentity(l.postedBy, identity)).length} posted by you`
             : `${board.length} open · ${mine.length} yours`}
         </span>
-        {mode === 'volunteer' && (
-          <RadiusFilter value={radius} onChange={setRadius} shown={board.length} />
-        )}
         <div className="app__actions">
           <div className="mode" role="group" aria-label="Act as">
             <button
@@ -124,17 +121,18 @@ function Board() {
               Donor
             </button>
           </div>
-          {mode === 'volunteer' && (
+          {mode === 'volunteer' ? (
             <button
               className={`btn${showMine ? ' btn--on' : ''}`}
               onClick={() => setShowMine((v) => !v)}
             >
               Your pickups ({mine.length})
             </button>
+          ) : (
+            <button className="btn btn--primary" onClick={() => setPosting(true)}>
+              Post a pickup
+            </button>
           )}
-          <button className="btn btn--primary" onClick={() => setPosting(true)}>
-            Post a pickup
-          </button>
         </div>
       </header>
 
@@ -149,6 +147,11 @@ function Board() {
           >
             <YouAreHere center={center} radius={radius} onMove={moveTo} />
           </MapView>
+          {mode === 'volunteer' && (
+            <div className="map__control">
+              <RadiusFilter value={radius} onChange={setRadius} shown={board.length} />
+            </div>
+          )}
         </div>
         {mode === 'donor' ? (
           <RestaurantView

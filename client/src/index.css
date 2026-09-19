@@ -414,3 +414,33 @@ html, body, #root { height: 100%; margin: 0; }
 .mode__btn:hover { color: var(--text); }
 .mode__btn--on { background: var(--ink); color: #faf8f3; }
 .mode__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+/* ---------- map overlay controls ----------
+   The radius filter lived in the header, where its count wrapped to a second
+   line and made the bar taller in volunteer mode than donor mode — so every
+   mode switch shifted the whole layout. It is a map control; it belongs on the
+   map. */
+.app__map { position: relative; }
+.map__control {
+  position: absolute; top: 12px; right: 12px; z-index: 760;
+  padding: 0.5rem 0.7rem; border-radius: var(--radius);
+  background: rgba(251, 249, 244, 0.95);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(60, 46, 24, 0.12);
+}
+
+/* The header had five competing groups and wrapped at 1280px. Keep the name
+   and the numbers on one line and let the tagline go first when space runs out. */
+.app__header { flex-wrap: nowrap; white-space: nowrap; gap: 0.7rem; }
+.app__tagline { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.app__actions { flex: none; }
+.app__actions .btn { white-space: nowrap; }
+
+@media (max-width: 1080px) {
+  .app__tagline { display: none; }
+}
+
+/* Actions sat at the very bottom of a tall panel, a long way from the listing
+   they act on. Under the content reads better; empty space below a panel is
+   not a problem. */
+.panel__actions { margin-top: 1.3rem; }
