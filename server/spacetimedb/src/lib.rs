@@ -1144,11 +1144,15 @@ pub fn suggest_description(
     ctx: &mut spacetimedb::ProcedureContext,
     donor: String,
     note: String,
+    photo: String,
 ) -> DescriptionDraft {
     use spacetimedb::http::{Body, Request};
 
-    if note.trim().is_empty() {
-        return DescriptionDraft::failed("Jot down what the food is first, even roughly.");
+    // A photo alone is enough — the whole point is suggesting a caption BEFORE
+    // the donor types anything. Only refuse when there is nothing at all to go on.
+    let has_photo = photo.starts_with("data:image/");
+    if note.trim().is_empty() && !has_photo {
+        return DescriptionDraft::failed("Add a photo, or jot down what the food is.");
     }
 
     // 1. Read the key and the model inside one short transaction.
@@ -1163,11 +1167,15 @@ pub fn suggest_description(
             .name()
             .find("xai_api_key".to_string())
             .map(|s| s.value);
+        // A photo needs a vision-capable model. `xai_vision_model` overrides
+        // `xai_model` when one is set, so the right id can be swapped in with a
+        // `set_secret` call rather than a republish.
         let model = tx
             .db
             .secret()
             .name()
-            .find("xai_model".to_string())
+            .find(if has_photo { "xai_vision_model" } else { "xai_model" }.to_string())
+            .or_else(|| tx.db.secret().name().find("xai_model".to_string()))
             .map(|s| s.value)
             .unwrap_or_else(|| DEFAULT_MODEL.to_string());
         (key, model)
@@ -1177,16 +1185,33 @@ pub fn suggest_description(
     };
 
     // 2. Transaction closed. Network I/O never happens with one open.
+    //
+    // With a photo the content becomes an array of parts — the OpenAI-compatible
+    // shape xAI accepts — so the model can read the image. Without one it stays
+    // a plain string, because a text-only request should not pay for the
+    // multi-part encoding.
+    let prompt = if note.trim().is_empty() {
+        format!("Business: {}\nDescribe the food in this photo.", donor.trim())
+    } else {
+        format!("Business: {}\nNote: {}", donor.trim(), note.trim())
+    };
+
+    let content = if has_photo {
+        serde_json::json!([
+            { "type": "text", "text": prompt },
+            { "type": "image_url", "image_url": { "url": photo } },
+        ])
+    } else {
+        serde_json::json!(prompt)
+    };
+
     let payload = serde_json::json!({
         "model": model,
         "temperature": 0.4,
         "max_tokens": 120,
         "messages": [
             { "role": "system", "content": SUGGEST_SYSTEM },
-            {
-                "role": "user",
-                "content": format!("Business: {}\nNote: {}", donor.trim(), note.trim()),
-            },
+            { "role": "user", "content": content },
         ],
     });
 

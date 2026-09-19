@@ -11,8 +11,14 @@
   background: rgba(8, 10, 14, 0.66);
 }
 
+/* Children keep their natural height. Without this every child of a flex column
+   with a max-height shrinks proportionally once the content overflows — which is
+   what squashed the description box the moment a photo preview appeared. The
+   container scrolls instead. */
+.post > * { flex: none; }
+
 .post {
-  width: min(30rem, 100%);
+  width: min(34rem, 100%);
   max-height: 92vh;
   overflow-y: auto;
   display: flex;

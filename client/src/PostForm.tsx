@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Timestamp } from 'spacetimedb'
 import { useProcedure, useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
@@ -64,21 +64,27 @@ export default function PostForm({
   const recentre = !pinned && mine ? 1 : 0
 
   const ready = donor.trim().length > 0 && description.trim().length > 0
+  // A photo alone is enough to ask for a caption — that is the point.
+  const canSuggest = donor.trim().length > 0 && (description.trim().length > 0 || !!photo)
 
   /**
-   * Ask Grok to tidy a rough note into a listing description.
+   * Ask Grok for a description — from the photo, a rough note, or both.
    *
    * The call runs as a `#[procedure]` inside the database, which is where the
-   * API key lives — a private table no client can read. Nothing about this is
-   * load-bearing: it writes into the same field the donor could have typed
+   * API key lives: a private table no client can read. Nothing about this is
+   * load-bearing. It writes into the same field the donor could have typed
    * themselves, and if it fails, posting is unaffected.
    */
   async function askForSuggestion() {
-    if (!ready || thinking) return
+    if (!canSuggest || thinking) return
     setThinking(true)
     setSuggestion(null)
     try {
-      const result = await suggest({ donor: donor.trim(), note: description.trim() })
+      const result = await suggest({
+        donor: donor.trim(),
+        note: description.trim(),
+        photo,
+      })
       if (!result.ok) {
         onError(result.error)
         return
@@ -90,6 +96,20 @@ export default function PostForm({
       setThinking(false)
     }
   }
+
+  // Suggest as soon as a photo arrives, unless the donor has already written
+  // something — overwriting their words would be rude. The ref makes this fire
+  // once per photo rather than on every render.
+  const suggestedFor = useRef<string>('')
+  useEffect(() => {
+    if (!photo || photo === suggestedFor.current) return
+    if (description.trim() || !donor.trim()) return
+    suggestedFor.current = photo
+    void askForSuggestion()
+    // askForSuggestion closes over current state; re-running on every change
+    // would re-ask mid-edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -138,6 +158,9 @@ export default function PostForm({
           autoFocus
         />
 
+        <span className="post__label">Photo</span>
+        <PhotoInput value={photo} onChange={setPhoto} onError={onError} />
+
         <label className="post__label" htmlFor="description">
           What is it?{' '}
           <span className="post__count">
@@ -159,12 +182,18 @@ export default function PostForm({
             type="button"
             className="btn btn--small"
             onClick={askForSuggestion}
-            disabled={!ready || thinking}
+            disabled={!canSuggest || thinking}
           >
-            {thinking ? 'Asking Grok…' : 'Tidy this up with Grok'}
+            {thinking
+              ? 'Asking Grok…'
+              : photo && !description.trim()
+                ? 'Describe the photo with Grok'
+                : 'Tidy this up with Grok'}
           </button>
           <span className="suggest__hint">
-            Jot it down roughly — or write it yourself and skip this.
+            {photo && !description.trim()
+              ? 'Grok reads the photo — or write it yourself and skip this.'
+              : 'Jot it down roughly — or write it yourself and skip this.'}
           </span>
         </div>
 
@@ -192,9 +221,6 @@ export default function PostForm({
             </div>
           </div>
         )}
-
-        <span className="post__label">Photo</span>
-        <PhotoInput value={photo} onChange={setPhoto} onError={onError} />
 
         <span className="post__label">Pick up within</span>
         <div className="post__windows">
