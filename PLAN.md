@@ -2,33 +2,41 @@
 
 > ## STATUS — read this before anything else
 >
-> **The core loop is DONE and works.** Four screens, two tables, five reducers,
-> the race proven both at the CLI and through the UI on two identities. 24
-> client tests green, typecheck and production build clean.
+> **`main` is the demo build and it is green.** Five tables, one view, eleven
+> reducers, two procedures. 32 client tests pass, typecheck and production
+> build clean, the race proven on two laptops and at the CLI. The branch below
+> takes that to seven tables, fifteen reducers, four procedures and 43 tests —
+> once it is published.
 >
 > **A known-good fallback exists: the `demo-v1` branch.** It points at the last
-> verified-working commit before the Phase 5 schema work. If Phase 5 goes wrong,
-> `git checkout demo-v1` is the way back. **Do not delete or force-push it.**
-> (It is a branch rather than a tag because annotated tag pushes fail through
-> the web sandbox's proxy. Either of us can add a real tag from a laptop.)
+> verified-working commit before the Phase 5 schema work. **Do not delete or
+> force-push it.** (A branch rather than a tag because annotated tag pushes fail
+> through the web sandbox's proxy.)
 >
-> **Roughly 22 hours left. Not tight — Phase 5 fits comfortably.** Sketch:
+> ### ⚠️ Branch `claude/elegant-archimedes-vqqdy1` needs a publish + regenerate
 >
-> | Window | Work |
-> |---|---|
-> | next ~6h | Phase 5: E's schema pass, V's stress test and scoped subscriptions |
-> | +6 → +10 | V's drawings, the contention ticker, integration |
-> | +10 → +14 | Re-test everything, two-laptop rehearsal |
-> | +14 → +18 | Devpost writeup, screenshots, submit |
-> | +18 → +22 | Buffer and more rehearsal |
+> It adds photos, donor profiles, address geocoding and a Grok description
+> suggestion. **The Rust compiles for `wasm32-unknown-unknown`. The client does
+> not typecheck yet** — it calls four things that only exist after
+> `spacetime generate` has seen the new module. That is the whole gap: every
+> one of the ten `tsc` errors is "this generated symbol does not exist", and
+> none of them is a real type error.
 >
-> **Nothing is submitted yet.** Not urgent at this range, but a Devpost entry
-> can be edited until the deadline, so putting a stub up costs nothing and
-> removes the one failure mode that cannot be recovered from: having a working
-> build and no submission because the last two hours went to debugging. Do it
-> whenever convenient, not necessarily first.
+> Two commands on a laptop with the 2.10.x CLI close it:
 >
-> Phase 5 plans, ownership and both per-person briefs live in `PROMPTS.md`.
+> ```bash
+> cd server/spacetimedb && spacetime publish food-pickup --yes
+> spacetime generate --lang typescript --out-dir ../../client/src/module_bindings
+> ```
+>
+> Then `cd client && npx tsc -b && npm test && npm run build` should be clean.
+> **Do not merge to `main` before that passes.** See "Phase 7" below.
+>
+> **Nothing is submitted to Devpost yet.** That is still the only failure mode
+> that cannot be recovered from. The repo moved to `ellachh/scraps-hophacks`, so
+> the link in `docs/DEVPOST.md` needs updating before it goes up.
+>
+> Phase 5 plans and both per-person briefs live in `PROMPTS.md`.
 
 Companion to `CLAUDE.md` (which holds the idea, scope and data model).
 This file holds **who does what, in what order, and what blocks what**.
@@ -1219,3 +1227,114 @@ The one exception worth revisiting if you are comfortably ahead at hour 20:
 cheap, and it demonstrates a SpacetimeDB feature most teams will never touch —
 the database calling your code on a timer with no client involved. That is
 directly on-track for the judges. Nothing else on the cut list is.
+
+---
+
+# PHASE 7 — photos, profiles, geocoding, and a Grok suggestion
+
+On branch `claude/elegant-archimedes-vqqdy1`. Four features V asked for, built
+together because they share a schema change and one publish.
+
+## What was added
+
+**Two new tables. No column was added to any existing table** — trap #9 makes
+that unpayable on a live database, and it is why both of these are tables
+rather than fields.
+
+| Table | Shape | Why it is its own table |
+|---|---|---|
+| `donor_profile` | `identity` PK, name, bio, address, lat, lng | Columns on `user` would need a default-value migration. New tables migrate cleanly. |
+| `listing_photo` | `listing_id` PK, data_uri, posted_by | A photo is ~1000x a listing row and every client subscribes to the board. Kept out of `listing` so the board stays cheap. |
+
+| Reducer | Behavior |
+|---|---|
+| `save_donor_profile(name, bio, address, lat, lng)` | Upsert against `ctx.sender()`. Identity is never a parameter. |
+| `post_listing_with_photo(..., photo)` | Listing and photo in one transaction. `post_listing` is untouched and still works. |
+| `attach_photo(listing_id, data_uri)` | Ownership-checked against `listing.posted_by`. |
+| `remove_photo(listing_id)` | Ownership-checked against `photo.posted_by`. |
+
+| Procedure | Behavior |
+|---|---|
+| `geocode(address) -> GeoResult` | Nominatim lookup. |
+| `suggest_description(donor, note) -> Suggestion` | Grok, key read from the private `secret` table. |
+
+`expire_listings` now also sweeps photos whose listing is gone or delivered —
+in the scheduled reducer rather than in each deleting path, so no future
+deletion path can leak one. `reset_board` drops them immediately instead of
+waiting for the next tick, because a rehearsal should not start with the last
+run's photos on the board.
+
+## Why the geocoder runs in the database
+
+Not architectural preciousness. **Nominatim's usage policy requires a
+descriptive `User-Agent`, and the browser fetch API will not let a page set
+that header** — it is on the forbidden list and is silently dropped. A
+procedure can set it, so the request we actually make is the one their policy
+asks for. It also keeps V's standing rule intact: there is still no `fetch`
+anywhere in `client/`.
+
+This is a better answer to a judge than the Grok feature, because it is a case
+where "the logic lives in the database" is *load-bearing* rather than stylistic.
+
+## The API key
+
+Unchanged from the spike: `set_secret` writes `xai_api_key` into the private
+`secret` table, which has no `public`, is skipped by codegen, and is
+unreachable over a subscription. Nothing is in the bundle and nothing is in
+the repo.
+
+```bash
+spacetime call food-pickup set_secret '"xai_api_key"' '"xai-..."'
+```
+
+**Without it, `suggest_description` returns `ok: false` and the sentence "No
+model key is set on this database."** The button shows that as a toast and
+posting is unaffected. The feature is a suggestion on a field the donor can
+type themselves — it was shaped that way so that a dead key, a slow model or
+no network costs nothing during a demo.
+
+## Files touched, against the Phase 5 ownership table
+
+V's files, as usual: `photo.ts`, `PhotoInput.tsx`, `MapPicker.tsx`,
+`DonorProfileForm.tsx`, `ListingPanel.tsx`, `RestaurantView.tsx`, `queries.ts`,
+`index.css`, `PostForm.css`, `DonorProfile.css`, `__tests__/photo.test.ts`.
+
+**Three of E's files were edited, deliberately, and they are the ones to look
+at first:**
+
+- `server/spacetimedb/src/lib.rs` — all additive. Nothing existing changed
+  except the two cleanup lines in `expire_listings` and `reset_board`.
+- `server/spacetimedb/Cargo.toml` — added `serde_json`. Both procedures parse
+  JSON. Pure Rust, compiles to wasm.
+- `PostForm.tsx` — rewritten: the pin picker moved out to `MapPicker.tsx` so
+  the profile form could share it, plus the photo input, the suggestion card,
+  and prefill from the profile.
+- `App.tsx` — **one line**: `onError={setToast}` passed to `RestaurantView`.
+
+## Verification — what has and has not been run
+
+| Check | Result |
+|---|---|
+| `cargo check --target wasm32-unknown-unknown` | **Pass** — the real target, not the host |
+| Client tests | **43 pass** (32 before, +11 for the photo sizing rules) |
+| `oxlint` | Clean, apart from the two pre-existing fast-refresh warnings |
+| `tsc -b` | **10 errors, all "generated symbol does not exist"** — closed by regenerate |
+| Anything against a live database | **Not run.** No 2.10.x CLI in the web sandbox: it is not on crates.io, and both the installer and GitHub releases are blocked by the proxy. |
+
+**So the untested surface is exactly the wire format**: whether the generated
+param shape for a procedure is a single object (`geocode({ address })`) the way
+it is for a reducer. If it turns out to be positional, it is a one-line change
+per call site and `tsc` will say so immediately.
+
+## Things worth knowing before demoing this
+
+- **The photo is the only user-supplied thing on the board that is not text.**
+  It is checked twice before it reaches an `<img src>`: `check_photo` in the
+  module and `isSafePhotoSrc` in the client, both against the same three
+  `data:image/...;base64,` prefixes. Neither is the only check.
+- **A photo makes the board heavier.** One 720px JPEG is ~50 KB. The photo
+  subscription is scoped to the selected listing precisely so fifteen of them
+  are not fifteen downloads — `photoFor(id)` in `queries.ts`. That scoping is
+  worth showing in DevTools next to the "one websocket, no polling" point.
+- **The claim ceiling still bites at three.** Unrelated, but it is the thing
+  that surprised V last time.

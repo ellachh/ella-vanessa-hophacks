@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { divIcon } from 'leaflet'
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet'
 import { Timestamp } from 'spacetimedb'
-import { useReducer } from 'spacetimedb/react'
+import { useProcedure, useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
-import { reducers } from './module_bindings'
+import MapPicker, { BALTIMORE } from './MapPicker'
+import PhotoInput from './PhotoInput'
+import { sameIdentity } from './identity'
+import { procedures, reducers, tables } from './module_bindings'
 import './PostForm.css'
-
-const BALTIMORE: [number, number] = [39.2904, -76.6122]
 
 // Mirrors the caps in server/spacetimedb/src/lib.rs. The module is still the
 // authority — this only saves a round trip and shows a live counter.
@@ -21,38 +20,6 @@ const WINDOWS = [
   { label: '8 hours', hours: 8 },
 ]
 
-/**
- * A divIcon, matching how MapView draws its pins — the dot is a styled <span>,
- * not an image. Leaflet's default marker is a PNG it locates at runtime, which
- * does not survive Vite's asset handling; sidestepping it entirely is simpler
- * than patching the lookup.
- *
- * Built once at module scope, and the HTML is a constant. Per MapView's note:
- * this string is not escaped, so nothing user-controlled may ever go in it.
- */
-const dropPin = divIcon({
-  className: '',
-  html: '<span class="pin-new"></span>',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-})
-
-/** Clicking the map moves the pin. Dropping a pin beats typing coordinates. */
-function PinPicker({
-  position,
-  onPick,
-}: {
-  position: [number, number]
-  onPick: (p: [number, number]) => void
-}) {
-  useMapEvents({
-    click(e) {
-      onPick([e.latlng.lat, e.latlng.lng])
-    },
-  })
-  return <Marker position={position} icon={dropPin} />
-}
-
 export default function PostForm({
   onClose,
   onError,
@@ -60,15 +27,69 @@ export default function PostForm({
   onClose: () => void
   onError: (message: string) => void
 }) {
-  const post = useReducer(reducers.postListing)
+  // One reducer inserts the listing and its photo in the same transaction.
+  // "Post, then attach" is not available: a reducer cannot return the new id,
+  // so the client would have to guess which row it had just made.
+  const post = useReducer(reducers.postListingWithPhoto)
+  const suggest = useProcedure(procedures.suggestDescription)
 
-  const [donor, setDonor] = useState('')
+  const { identity } = useSpacetimeDB()
+  const [profiles] = useTable(tables.donorProfile)
+  const mine = profiles.find((p) => sameIdentity(p.identity, identity))
+
   const [description, setDescription] = useState('')
   const [hours, setHours] = useState(4)
-  const [position, setPosition] = useState<[number, number]>(BALTIMORE)
+  const [photo, setPhoto] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const [suggestion, setSuggestion] = useState<string | null>(null)
+  const [thinking, setThinking] = useState(false)
+
+  /**
+   * The saved restaurant profile fills the name and the pin.
+   *
+   * `null` means "the donor hasn't touched this", so the profile shows
+   * through; the first edit pins it. Deriving it this way rather than copying
+   * the profile into state with an effect matters because the profile arrives
+   * over a subscription — it can land several frames after this form opens,
+   * and an effect racing that would either overwrite typing or miss entirely.
+   */
+  const [typedDonor, setTypedDonor] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<[number, number] | null>(null)
+
+  const donor = typedDonor ?? mine?.name ?? ''
+  const position: [number, number] = pinned ?? (mine ? [mine.lat, mine.lng] : BALTIMORE)
+  // MapContainer reads `center` once, on mount. If the profile arrives after
+  // that, the derived position has moved but the map has not — so tell it.
+  const recentre = !pinned && mine ? 1 : 0
+
   const ready = donor.trim().length > 0 && description.trim().length > 0
+
+  /**
+   * Ask Grok to tidy a rough note into a listing description.
+   *
+   * The call runs as a `#[procedure]` inside the database, which is where the
+   * API key lives — a private table no client can read. Nothing about this is
+   * load-bearing: it writes into the same field the donor could have typed
+   * themselves, and if it fails, posting is unaffected.
+   */
+  async function askForSuggestion() {
+    if (!ready || thinking) return
+    setThinking(true)
+    setSuggestion(null)
+    try {
+      const result = await suggest({ donor: donor.trim(), note: description.trim() })
+      if (!result.ok) {
+        onError(result.error)
+        return
+      }
+      setSuggestion(result.text)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setThinking(false)
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -82,6 +103,7 @@ export default function PostForm({
         pickupBy: Timestamp.fromDate(new Date(Date.now() + hours * 3_600_000)),
         lat: position[0],
         lng: position[1],
+        photo,
       })
       // Nothing to update locally — the subscription delivers the new row to
       // every board, including this one. Just get out of the way.
@@ -112,7 +134,7 @@ export default function PostForm({
           value={donor}
           maxLength={MAX_DONOR}
           placeholder="Pratt Street Bakehouse"
-          onChange={(e) => setDonor(e.target.value)}
+          onChange={(e) => setTypedDonor(e.target.value)}
           autoFocus
         />
 
@@ -132,6 +154,48 @@ export default function PostForm({
           onChange={(e) => setDescription(e.target.value)}
         />
 
+        <div className="suggest">
+          <button
+            type="button"
+            className="btn btn--small"
+            onClick={askForSuggestion}
+            disabled={!ready || thinking}
+          >
+            {thinking ? 'Asking Grok…' : 'Tidy this up with Grok'}
+          </button>
+          <span className="suggest__hint">
+            Jot it down roughly — or write it yourself and skip this.
+          </span>
+        </div>
+
+        {suggestion && (
+          <div className="suggest__card">
+            <p className="suggest__text">{suggestion}</p>
+            <div className="suggest__actions">
+              <button
+                type="button"
+                className="btn btn--small btn--primary"
+                onClick={() => {
+                  setDescription(suggestion)
+                  setSuggestion(null)
+                }}
+              >
+                Use this
+              </button>
+              <button
+                type="button"
+                className="btn btn--small"
+                onClick={() => setSuggestion(null)}
+              >
+                Keep mine
+              </button>
+            </div>
+          </div>
+        )}
+
+        <span className="post__label">Photo</span>
+        <PhotoInput value={photo} onChange={setPhoto} onError={onError} />
+
         <span className="post__label">Pick up within</span>
         <div className="post__windows">
           {WINDOWS.map((w) => (
@@ -149,16 +213,7 @@ export default function PostForm({
         <span className="post__label">
           Where <span className="post__count">click the map to move the pin</span>
         </span>
-        <div className="post__map">
-          <MapContainer center={BALTIMORE} zoom={12} scrollWheelZoom={false}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-            />
-            <PinPicker position={position} onPick={setPosition} />
-          </MapContainer>
-        </div>
+        <MapPicker position={position} onPick={setPinned} recentreToken={recentre} />
 
         <div className="post__actions">
           <button type="button" className="btn" onClick={onClose} disabled={busy}>

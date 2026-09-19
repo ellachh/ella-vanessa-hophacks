@@ -113,3 +113,105 @@
   border: 2px solid #fff;
   box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.32);
 }
+
+/* --- Photo, and the Grok suggestion ------------------------------------- */
+
+.post__note {
+  margin: -0.25rem 0 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* The real input is driven by the styled button next to it; hiding it with
+   `display: none` would take it out of the focus order, so it is clipped
+   instead. */
+.photo__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.photo {
+  position: relative;
+  margin-bottom: 0.25rem;
+}
+
+.photo__drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 1rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--ease), background-color var(--ease);
+}
+
+.photo__drop:hover:not(:disabled) { border-color: var(--muted); }
+.photo__drop:disabled { cursor: default; opacity: 0.7; }
+
+.photo__hint {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.photo__preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.photo__buttons {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.suggest {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.suggest__hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.suggest__card {
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--open);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.suggest__text {
+  margin: 0 0 0.6rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.suggest__actions {
+  display: flex;
+  gap: 0.45rem;
+}

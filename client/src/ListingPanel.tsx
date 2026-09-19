@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { useReducer } from 'spacetimedb/react'
+import { useReducer, useTable } from 'spacetimedb/react'
 import type { Identity } from 'spacetimedb'
 
 import { listingState } from './listing'
+import { sameIdentity } from './identity'
+import { isSafePhotoSrc } from './photo'
+import { photoFor } from './queries'
 import StressTest from './StressTest'
-import { reducers } from './module_bindings'
+import { reducers, tables } from './module_bindings'
 import type { Listing, User } from './module_bindings/types'
 import { milesFrom, type LatLng } from './radius'
 import { pickupClock, timeLeft, urgencyOf } from './pickupWindow'
@@ -33,6 +36,11 @@ export default function ListingPanel({
   const complete = useReducer(reducers.completeListing)
   const [busy, setBusy] = useState(false)
 
+  // Scoped to the selected listing, so the board never pulls photos it is not
+  // showing. Hooks cannot be called conditionally, hence the null case.
+  const [photos] = useTable(photoFor(listing?.id ?? null))
+  const [profiles] = useTable(tables.donorProfile)
+
   if (!listing) {
     return (
       <aside className="panel panel--empty">
@@ -42,6 +50,10 @@ export default function ListingPanel({
   }
 
   const state = listingState(listing, me)
+  // Another anonymous client uploaded this, so it is checked before it reaches
+  // an `src`. The module checks it too; neither check is the only one.
+  const photo = photos.find((p) => isSafePhotoSrc(p.dataUri))
+  const shopfront = profiles.find((p) => sameIdentity(p.identity, listing.postedBy))
   const holder = listing.claimedBy
     ? users.find((u) => u.identity.isEqual(listing.claimedBy!))?.name
     : undefined
@@ -69,7 +81,18 @@ export default function ListingPanel({
         {state === 'open' ? 'Open' : state === 'mine' ? 'Yours' : `Claimed by ${holder ?? 'someone else'}`}
       </span>
       <h2 className="panel__donor">{listing.donor}</h2>
+      {photo && (
+        <img
+          className="panel__photo"
+          src={photo.dataUri}
+          alt={`Surplus food from ${listing.donor}`}
+        />
+      )}
       <p className="panel__desc">{listing.description}</p>
+      {/* JSX children, so React escapes it. Never build this with an HTML
+          string — the same rule that governs the map popups. */}
+      {shopfront?.bio && <p className="panel__bio">{shopfront.bio}</p>}
+      {shopfront?.address && <p className="panel__meta">{shopfront.address}</p>}
       <p className={`panel__when panel__when--${urgencyOf(listing.pickupBy)}`}>
         {timeLeft(listing.pickupBy)}
       </p>

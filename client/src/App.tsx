@@ -159,6 +159,7 @@ function Board() {
             users={users}
             me={identity}
             onPost={() => setPosting(true)}
+            onError={setToast}
           />
         ) : showMine ? (
           <MyPickups listings={mine} onSelect={jumpTo} onError={setToast} />
