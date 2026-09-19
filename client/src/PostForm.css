@@ -100,3 +100,16 @@
   gap: 0.5rem;
   margin-top: 1rem;
 }
+
+/* The picker pin. A styled span, not Leaflet's default PNG marker — see the
+   comment on dropPin in PostForm.tsx. Amber matches .pin--open, since a posted
+   listing starts unclaimed; the ring marks it as not-yet-placed. */
+.pin-new {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f5a524;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.32);
+}

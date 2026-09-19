@@ -1,11 +1,10 @@
 import { useState } from 'react'
+import { divIcon } from 'leaflet'
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet'
 import { Timestamp } from 'spacetimedb'
 import { useReducer } from 'spacetimedb/react'
 
 import { reducers } from './module_bindings'
-// Side-effect import: fixes Leaflet's default marker in production builds.
-import './leaflet-default-icon'
 import './PostForm.css'
 
 const BALTIMORE: [number, number] = [39.2904, -76.6122]
@@ -22,6 +21,22 @@ const WINDOWS = [
   { label: '8 hours', hours: 8 },
 ]
 
+/**
+ * A divIcon, matching how MapView draws its pins — the dot is a styled <span>,
+ * not an image. Leaflet's default marker is a PNG it locates at runtime, which
+ * does not survive Vite's asset handling; sidestepping it entirely is simpler
+ * than patching the lookup.
+ *
+ * Built once at module scope, and the HTML is a constant. Per MapView's note:
+ * this string is not escaped, so nothing user-controlled may ever go in it.
+ */
+const dropPin = divIcon({
+  className: '',
+  html: '<span class="pin-new"></span>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+})
+
 /** Clicking the map moves the pin. Dropping a pin beats typing coordinates. */
 function PinPicker({
   position,
@@ -35,7 +50,7 @@ function PinPicker({
       onPick([e.latlng.lat, e.latlng.lng])
     },
   })
-  return <Marker position={position} />
+  return <Marker position={position} icon={dropPin} />
 }
 
 export default function PostForm({
