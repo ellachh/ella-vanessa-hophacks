@@ -597,6 +597,99 @@ CLAUDE.md and PLAN.md to record that override and the schema change, or the
 rule will read as broken rather than lifted.
 ```
 
+## File ownership for Phase 5
+
+Unchanged from Phase 3 except that E now owns the files she created.
+
+| File | Owner |
+|---|---|
+| `server/**`, `client/src/module_bindings/` | **E** |
+| `App.tsx`, `PostForm.tsx`, `MyPickups.tsx` + their CSS | **E** |
+| `MapView.tsx`, `ListingPanel.tsx`, `Toast.tsx`, `NameGate.tsx` | **V** |
+| `ConnectionGate.tsx`, `listing.ts`, `pickupWindow.ts`, `index.css` | **V** |
+| `StressTest.tsx`, `ContentionFeed.tsx` (new) | **V** |
+
+## One interaction between two Phase 5 items — catch it before it bites
+
+**The stress test (item 4) and the max-3-claims invariant (item 10) collide.**
+
+The stress test fires ~50 claims from one browser, so all 50 carry the *same*
+`ctx.sender`. That still proves the point — exactly one write succeeds out of 50
+concurrent attempts — but two things follow:
+
+1. **The rejection copy reads oddly.** The 49 losers get "Vanessa claimed this
+   first," addressed to Vanessa. So the stress test must display a **tally**,
+   not the individual messages. `1 of 50 succeeded` is the claim; whose name is
+   on it is irrelevant.
+2. **Repeated runs hit the 3-claim ceiling.** Each successful run leaves the
+   volunteer holding another listing. The stress test should release its claim
+   when it finishes, or target a listing someone already holds. Otherwise the
+   fourth run fails for a reason that has nothing to do with contention and
+   looks like a bug mid-demo.
+
+Worth deciding out loud whether the invariant counts *open* claims only
+(completed ones should probably not count against the ceiling).
+
+## Vanessa's Phase 5 prompt
+
+```
+Read CLAUDE.md, PLAN.md and the Phase 5 section of PROMPTS.md first. Phases 0-4
+are essentially done — do not rebuild anything. Ella is deepening the backend in
+one schema pass; some of my work waits on that and some does not.
+
+Work on a branch: `git pull --rebase origin main && git checkout -b feat/phase5`
+
+FILES I OWN: MapView.tsx, ListingPanel.tsx, Toast.tsx, NameGate.tsx,
+ConnectionGate.tsx, listing.ts, pickupWindow.ts, index.css, and any new files I
+create. I must NOT edit App.tsx, PostForm.tsx, MyPickups.tsx, server/** or
+module_bindings/ — those are Ella's.
+
+DO NOW — no dependency on Ella:
+
+TASK 1 — the contention stress test. A deliberate button that fires ~50
+claimListing calls at one listing simultaneously via Promise.allSettled, then
+shows a TALLY, not the individual messages:
+    50 fired · 1 succeeded · 49 rejected · 0 double-claims
+All 50 come from my identity, so the rejection copy would read "Vanessa claimed
+this first" to Vanessa — which is why it must be a tally. Release the claim when
+the run finishes, or repeated runs will hit Ella's 3-claim ceiling and fail for
+an unrelated reason. Keep it somewhere a judge can press but nobody hits by
+accident.
+
+TASK 2 — scope the subscriptions. We currently pull every row and filter in
+React. Move the filter server-side:
+    useTable(tables.listing.where(r => r.completed.eq(false)))
+Check what this breaks first: if any view needs completed listings, scoping the
+shared subscription removes them everywhere. Verify My Pickups still behaves
+before pushing, even though that file is Ella's.
+
+TASK 3 — visual work, blocks on nobody. In priority order: the hand-drawn race
+diagram (highest value of anything here — it goes at the top of the Devpost),
+custom map pins as SVG, a Relay wordmark, then an empty-state illustration.
+Pins go through divIcon's html string, which is NOT escaped — only ever our own
+static markup there, never a donor name or description.
+
+AFTER ELLA'S SCHEMA PASS LANDS — she will say so explicitly:
+
+TASK 4 — pull immediately. She is moving donor address and phone OUT of
+`listing` into a separate `pickup_contact` table behind a visibility filter.
+That is a field removal, so my client will not compile until I adapt. Contact
+details should now render only when I hold the claim.
+
+TASK 5 — the contention feed. Her `claim_attempt` event table broadcasts every
+claim attempt, won and lost, to every client. Event table rows are never stored
+in the client cache — count() is 0 and iter() yields nothing — so this must be
+driven by useTable's onInsert callback, NOT by reading rows. A live ticker:
+"Ella tried #30 — lost. Vanessa took #30." Cap it at the last handful so it
+does not grow without bound.
+
+CONSTRAINTS: no fetch, no polling, no React Query, no Zustand. Never hand-edit
+module_bindings. Keep claimed-vs-open obviously distinct at a glance. Run
+`npm test` before every push — 24 cases cover the coordinate guard and identity
+comparison, and both are load-bearing. Merge to main as soon as each piece
+works; do not batch.
+```
+
 ## V's visual track (runs in parallel, no backend dependency)
 
 Hand-drawn assets are worth real points and block on nobody. In rough order of
