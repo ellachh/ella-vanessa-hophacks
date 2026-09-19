@@ -180,6 +180,25 @@ Vanessa gets typed bindings without building the Rust module.
 
 ---
 
+## BLOCKER: CLI and SDK versions must match
+
+V has installed `spacetimedb@2.10.1` on the client. The bindings E generates must
+target that same major version, because `spacetime generate` emits imports whose
+package name and API shape follow the CLI that produced them. A 1.x CLI emits
+bindings that will not compile against a 2.x SDK.
+
+**Check this before generating anything:**
+
+```bash
+spacetime --version      # E: must be 2.x
+cd client && npm ls spacetimedb   # V: currently 2.10.1
+```
+
+If E's CLI is 1.x, upgrade it before Phase 1 rather than debugging mismatched
+bindings later. Confirm the two out loud at the handoff.
+
+---
+
 ## Phase 1 — Schema freeze and bindings (E+V together, ~hours 0–2)
 
 This is the most important 2 hours of the event. Do it side by side, not split.
