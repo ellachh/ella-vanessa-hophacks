@@ -145,3 +145,56 @@ body,
 /* Leaflet's panes sit at z-index 400-700; keep our chrome above them. */
 .panel, .app__header, .toast { position: relative; z-index: 800; }
 .toast { position: fixed; }
+
+/* ---------- map wrapper + empty state ---------- */
+.map-wrap { position: relative; height: 100%; width: 100%; }
+
+/* Sits above Leaflet's panes (z 400-700) but below the toast (800). */
+.empty {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 750; max-width: 320px; padding: 1.25rem 1.5rem; text-align: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+}
+.empty__title { margin: 0 0 0.4rem; font-weight: 650; }
+.empty__sub { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+/* ---------- pickup window ----------
+   A driver cares how long they have, not the wall-clock deadline. Colour
+   carries urgency, but the text says it too — never colour alone. */
+.popup__when, .panel__when {
+  display: block; font-size: 0.75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 0.25rem;
+}
+.popup__when--ok, .panel__when--ok { color: #6ee7a8; }
+.popup__when--soon, .panel__when--soon { color: #f5a524; }
+.popup__when--overdue, .panel__when--overdue { color: #f87171; }
+.panel__when { margin: 0.5rem 0 0.1rem; font-size: 0.8rem; }
+
+/* ---------- popups ----------
+   Leaflet's popup chrome is light by default; recolour it to match. */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.leaflet-popup-content { margin: 0.7rem 0.9rem; min-width: 180px; }
+.leaflet-popup-content p { margin: 0; }
+.popup__donor { display: block; font-size: 0.95rem; margin-bottom: 0.15rem; }
+.popup__desc { display: block; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
+.popup__state { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: var(--muted); }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+
+/* ---------- connecting spinner ---------- */
+.gate__card--center { align-items: center; text-align: center; }
+.spinner {
+  width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 0.75rem;
+  border: 3px solid var(--line); border-top-color: #2563eb;
+  animation: spin 800ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Respect users who have asked for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+  .pin { transition: none; }
+}

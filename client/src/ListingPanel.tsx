@@ -2,16 +2,10 @@ import { useState } from 'react'
 import { useReducer } from 'spacetimedb/react'
 import type { Identity } from 'spacetimedb'
 
-import { listingState } from './MapView'
+import { listingState } from './listing'
 import { reducers } from './module_bindings'
 import type { Listing, User } from './module_bindings/types'
-
-function pickupBy(l: Listing): string {
-  return l.pickupBy.toDate().toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
+import { pickupClock, timeLeft, urgencyOf } from './pickupWindow'
 
 export default function ListingPanel({
   listing,
@@ -66,7 +60,10 @@ export default function ListingPanel({
       </span>
       <h2 className="panel__donor">{listing.donor}</h2>
       <p className="panel__desc">{listing.description}</p>
-      <p className="panel__meta">Pick up by {pickupBy(listing)}</p>
+      <p className={`panel__when panel__when--${urgencyOf(listing.pickupBy)}`}>
+        {timeLeft(listing.pickupBy)}
+      </p>
+      <p className="panel__meta">Pick up by {pickupClock(listing.pickupBy)}</p>
 
       <div className="panel__actions">
         {state === 'open' && (
