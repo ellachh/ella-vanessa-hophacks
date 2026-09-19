@@ -220,24 +220,51 @@ spacetime call food-pickup reset_board
 
 Run it before each rehearsal and once more before judging.
 
-### Open question — verify before relying on it
+### ANSWERED: the losing claim_attempt row does NOT survive
 
-`claim_listing` writes a `claim_attempt` row on **both** paths, won and lost.
-But a reducer returning `Err` aborts its transaction, and that insert is inside
-the transaction — **the losing row may roll back**, leaving a ticker that only
-ever shows winners.
+Tested live against Maincloud. Two concurrent claims on listing 8208, one
+subscriber watching `claim_attempt`. The subscriber received exactly one row:
 
-Nobody has checked yet. Thirty seconds to settle it:
-
-```bash
-spacetime subscribe food-pickup "SELECT * FROM claim_attempt" --num-updates 5 &
-spacetime call -- food-pickup claim_listing 30 & spacetime call -- food-pickup claim_listing 30 & wait
+```json
+{"listing_id":8208,"who":{"__identity__":"0xc200af83…"},"won":true,
+ "at":{"__timestamp_micros_since_unix_epoch__":1789830597098592}}
 ```
 
-Two rows printed → losses survive, the ticker works as designed. One row → they
-roll back, and the fix is a **design change, not a patch**: the loser's outcome
-would have to travel in an `Ok` result instead of an `Err`, which costs us the
-rejection toast. That trade is V's call as much as E's, since the toast is hers.
+Only `won: true`. The loser's insert was discarded.
+
+**Why:** a reducer returning `Err` aborts its transaction, and the insert
+happened inside that transaction. There is no partial commit — that is the same
+property that makes the contested claim safe in the first place. The guarantee
+we are demonstrating is precisely the thing that eats the loss record.
+
+**Consequence: a `claim_attempt` ticker can only ever show winners.**
+
+#### The two designs, and why we are keeping the current one
+
+| | Keeps rejection toast | Ticker shows losses |
+|---|---|---|
+| **Today** — `Err` on loss | yes | no |
+| **Alternative** — always `Ok`, outcome in the event row | no | yes |
+
+The alternative works: `claim_listing` returns `Ok(())` on every path, writes
+`won: true/false`, and the client fires the toast from `onInsert` when a row
+arrives with `who == me && !won`. That gets both.
+
+**We are not doing it.** The toast is the demo centerpiece — it is what makes the
+mechanism visible on the loser's own screen at the moment it matters. Trading a
+working, verified centerpiece for an ambient ticker, hours out, under a judging
+criterion that reads *polished*, is the wrong bet. A winners-only feed is still
+a live claim feed.
+
+If a ticker ships, it shows winners. If it cannot be finished properly, it does
+not ship at all.
+
+#### This is our best "what surprised you?" answer
+
+We predicted the behaviour in a code comment, wrote the test, ran it, and got a
+result that closed off a feature. The transaction boundary is not a detail we
+read about — it is one we found, and the thing that broke is the same thing that
+makes the whole project correct.
 
 ---
 

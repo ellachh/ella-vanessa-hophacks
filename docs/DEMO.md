@@ -101,10 +101,19 @@ not enforced, so we cut the private-contact table rather than ship a security
 claim with nothing behind it.
 
 **"What surprised you?"**
-The transaction boundary around the event table. Returning `Err` aborts the
-whole transaction, including writes you made before returning — so broadcasting
-a *rejected* attempt from a failing reducer is not obviously possible. We found
-that by testing rather than by reading.
+The transaction boundary around our event table — and it's a better story
+because we were wrong in a useful direction.
+
+We added a `claim_attempt` event table to broadcast every claim, won or lost,
+and wrote a comment predicting the losing write might not survive. It doesn't.
+A reducer returning `Err` aborts its whole transaction, so the `won: false`
+insert is discarded and subscribers only ever see winners.
+
+The thing that closed off the feature is the same all-or-nothing property that
+makes the contested claim correct. We could get losses back by always returning
+`Ok` and putting the outcome in the event row — but that costs the rejection
+message on the loser's screen, which is the clearest thing in this demo. So we
+kept the guarantee and dropped the feature.
 
 ## When it goes wrong
 

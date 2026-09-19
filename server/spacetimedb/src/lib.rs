@@ -287,12 +287,16 @@ fn open_claims(ctx: &ReducerContext, who: Identity) -> usize {
 
 /// Broadcast a claim attempt to every subscriber.
 ///
-/// NOTE, and verify this before relying on it: a reducer that returns `Err`
-/// aborts its transaction, and this insert is part of that transaction. The
-/// losing write may therefore roll back, leaving the ticker showing only
-/// winners. See PLAN.md for the 30-second check. If it does roll back, the fix
-/// is a design change, not a patch: the loser's outcome would have to travel in
-/// an `Ok` result rather than an `Err`, which costs us the rejection toast.
+/// VERIFIED against Maincloud: the losing write does NOT survive.
+///
+/// A reducer returning `Err` aborts its transaction, and this insert is inside
+/// it, so every `won: false` row is discarded. Subscribers see winners only.
+/// That is not a bug to route around — it is the same all-or-nothing property
+/// that makes the contested claim safe.
+///
+/// The losing calls are left in deliberately. They cost nothing, they document
+/// intent, and they would start working unchanged if the outcome ever moved
+/// into an `Ok` result. See PLAN.md for why we are not making that trade.
 fn record_attempt(ctx: &ReducerContext, listing_id: u64, won: bool) {
     ctx.db.claim_attempt().insert(ClaimAttempt {
         listing_id,
