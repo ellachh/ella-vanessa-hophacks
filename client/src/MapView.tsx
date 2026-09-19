@@ -1,34 +1,15 @@
-import { divIcon } from 'leaflet'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import type { Identity } from 'spacetimedb'
 
 import './leaflet-default-icon'
 import { sameIdentity } from './identity'
-import { listingState, type ListingState } from './listing'
+import { listingState } from './listing'
+import { pinIcon } from './pins'
 import type { Listing, User } from './module_bindings/types'
 import { timeLeft, urgencyOf } from './pickupWindow'
 
 /** Downtown Baltimore — the whole demo is scoped to one city. */
 export const BALTIMORE: [number, number] = [39.2904, -76.6122]
-
-/**
- * divIcon rather than an image pin, so state is a CSS class and transitions.
- *
- * This is the one place in the client that builds an HTML string, and it is
- * safe only because nothing user-controlled reaches it: `state` is a union
- * computed from `claimedBy`, and `selected` is a boolean. Never interpolate
- * `donor`, `description` or a volunteer's name in here — any listing field is
- * free-form input from an anonymous client, and this string is not escaped.
- * Text belongs in the <Popup> below, which React escapes.
- */
-function pin(state: ListingState, selected: boolean) {
-  return divIcon({
-    className: '',
-    html: `<span class="pin pin--${state}${selected ? ' pin--selected' : ''}"></span>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  })
-}
 
 export default function MapView({
   listings,
@@ -61,7 +42,7 @@ export default function MapView({
             <Marker
               key={String(l.id)}
               position={[l.lat, l.lng]}
-              icon={pin(state, l.id === selectedId)}
+              icon={pinIcon(state, l.id === selectedId)}
               eventHandlers={{ click: () => onSelect(l.id) }}
             >
               {/*
