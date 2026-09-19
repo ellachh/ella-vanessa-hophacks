@@ -123,6 +123,144 @@ Start with Phase 1 step 1.
 
 ---
 
+---
+
+# PHASE 3 — both of us in `client/`
+
+Phases 0–2 are done. Paste your Phase 3 section below into your session.
+
+## What already exists — do not rebuild any of it
+
+The core loop works and has been verified live on two identities: a claim in one
+browser greys the pin in the other with no refresh.
+
+| Thing | Where | State |
+|---|---|---|
+| Two tables, five reducers | `server/spacetimedb/src/lib.rs` | Done. Validation + `Result` errors. Published to Maincloud as `food-pickup`. |
+| Generated bindings | `client/src/module_bindings/` | Done. Generated output — never hand-edit. |
+| Connection + subscription | `main.tsx`, `App.tsx` | Done. Two `useTable` calls are the entire data layer. |
+| Map + markers | `MapView.tsx` | Done. Amber open / blue yours / grey taken, 280ms transition. |
+| Name gate | `NameGate.tsx` | Done. Blocks the board so both volunteers always have display names. |
+| Claim / release / deliver | `ListingPanel.tsx` | Done. Never optimistic — the row is the only truth. |
+| Race-error toast | `Toast.tsx` | Done. Shows the module's message verbatim. |
+| 15 Baltimore listings | `server/seed.sh` | Done. Run it. |
+
+**The one real gap: nothing calls `post_listing` from the client.** Demo beat 2
+("Ella posts a listing, it appears on Vanessa's screen instantly") is currently
+impossible outside a terminal. That is the highest-value thing left.
+
+## File ownership for Phase 3 — agreed, do not cross
+
+Git merges different files silently. It only fights when you edit the same one.
+
+| File | Owner | Rule |
+|---|---|---|
+| `PostForm.tsx`, `MyPickups.tsx` (new) | **E** | V does not touch |
+| `App.tsx` | **E** for Phase 3 | V has moved out of it — see below |
+| `PostForm.css`, `MyPickups.css` (new) | **E** | Keep E's styles out of `index.css` |
+| `MapView.tsx`, `ListingPanel.tsx`, `Toast.tsx`, `NameGate.tsx` | **V** | E does not touch |
+| `ConnectionGate.tsx` (new) | **V** | V's loading / empty / connection-lost states live here |
+| `index.css` | **V** | E appends nothing here |
+| `server/**` | **E** | V does not touch |
+| `client/src/module_bindings/` | **E** | Generated. Regenerate, never hand-edit. |
+
+**V's first job is to move the connection-state handling out of `App.tsx` into
+`ConnectionGate.tsx`.** After that V never edits `App.tsx` again and E owns it
+outright, which removes the only file both of us would otherwise fight over.
+V does that extraction first and pushes it before E starts.
+
+## Branches — Phase 3 only
+
+```bash
+git pull --rebase origin main        # ALWAYS first
+git checkout -b feat/post-form       # E    (feat/map-polish for V)
+# work, commit
+git push -u origin feat/post-form
+git checkout main && git pull --rebase origin main && git merge feat/post-form
+git push origin main
+```
+
+Merge as soon as your own feature works. Do not batch.
+
+---
+
+## Ella's Phase 3 prompt
+
+```
+Read CLAUDE.md and PLAN.md first. Phases 0-2 are done — the backend is
+finished and the client's core loop works. Do not go looking for more backend
+work, and do not rebuild anything in the "What already exists" table in
+PROMPTS.md.
+
+I am now working in client/ alongside Vanessa. Work on a branch:
+`git pull --rebase origin main && git checkout -b feat/post-form`
+
+FILES I OWN THIS PHASE: PostForm.tsx, MyPickups.tsx (both new), App.tsx, and
+my own CSS files. I must NOT edit MapView.tsx, ListingPanel.tsx, Toast.tsx,
+NameGate.tsx, ConnectionGate.tsx, index.css, config.ts, identity.ts or
+main.tsx — those are Vanessa's and editing them causes merge conflicts.
+Put my styles in PostForm.css / MyPickups.css, never append to index.css.
+
+TASK 1 — the post-listing form. This is the priority; demo beat 2 does not
+exist without it. Call the postListing reducer with donor, description,
+pickup_by, lat and lng. Reducers take a single params object, not positional
+arguments. Timestamp has toDate() and microsSinceUnixEpoch. For location,
+clicking the map to drop a pin demos far better than lat/lng text fields —
+but if that fights me, ship the fields first and improve it after.
+The reducer returns Result, so surface its error message rather than
+swallowing it, the same way ListingPanel already does.
+
+TASK 2 — a "My pickups" view: listings where claimed_by is my identity, with
+release and mark-delivered. The actions already exist in ListingPanel; this is
+the fourth screen CLAUDE.md asks for. Identity is a class — compare with
+isEqual, never ===. There is a sameIdentity helper in identity.ts.
+
+TASK 3 — still outstanding from Phase 2: prove the race and SAVE THE OUTPUT.
+Fire two claim_listing calls at the same listing as close to simultaneously as
+possible, confirm exactly one wins, and commit the terminal capture. The risk
+register names this as our fallback if the live demo will not connect.
+
+CONSTRAINTS: no fetch, no polling, no React Query, no Zustand — read rows with
+useTable, write with reducers. Do not add features beyond CLAUDE.md's Scope.
+Merge my branch into main as soon as the form works; do not batch.
+```
+
+## Vanessa's Phase 3 prompt
+
+```
+Read CLAUDE.md and PLAN.md first. Phases 0-2 are done and verified live. Do
+not rebuild anything in the "What already exists" table in PROMPTS.md.
+
+Ella is now in client/ too, so work on a branch:
+`git pull --rebase origin main && git checkout -b feat/map-polish`
+
+FILES I OWN THIS PHASE: MapView.tsx, ListingPanel.tsx, Toast.tsx,
+NameGate.tsx, ConnectionGate.tsx (new), index.css. I must NOT edit
+App.tsx, PostForm.tsx or MyPickups.tsx — Ella owns those this phase.
+I must not touch server/ or module_bindings/ at all.
+
+TASK 1 — DO THIS FIRST AND PUSH IT BEFORE ELLA STARTS. Move the connection
+handling out of App.tsx into ConnectionGate.tsx: the connectionError branch,
+the "Connecting..." branch, and the name-gate branch. App.tsx should end up
+just composing things. This is what lets Ella own App.tsx for the rest of the
+phase without us colliding.
+
+TASK 2 — the states that live in ConnectionGate: a real loading state, an
+empty state for when the board has no open listings, and a connection-lost
+state. useSpacetimeDB() gives isActive, identity and connectionError.
+
+TASK 3 — map polish: popups on markers and the pickup-by window displayed
+where it reads at a glance. Use react-leaflet's <Popup> with JSX children.
+NEVER use Leaflet's bindPopup with an HTML string — listing text is free-form
+input from any anonymous client, so that is stored XSS. See CLAUDE.md,
+Security.
+
+CONSTRAINTS: no fetch, no polling, no React Query, no Zustand. Do not add
+features beyond CLAUDE.md's Scope. Keep claimed-vs-open obviously different at
+a glance — watching a pin grey out in real time is the demo. Merge my branch
+into main as soon as a piece works; do not batch.
+```
+
 ## Handoff points
 
 Three moments where you must talk to each other out loud. Everything else can
@@ -132,7 +270,9 @@ happen in parallel.
 |---|---|---|
 | End of Phase 1 | E → V | "Bindings are committed and pushed, pull now." V is blocked until this happens. |
 | Any schema change | E → V | "I changed the schema, regenerated, pushed. Pull before you do anything else." |
-| Start of Phase 3 | E ↔ V | Agree out loud which `client/` files E is taking, so you are not in the same component. |
+| Start of Phase 3 | E ↔ V | **Settled** — see the ownership table under PHASE 3. V pushes the `ConnectionGate` extraction first, then E owns `App.tsx`. |
+| Before E starts Phase 3 | V → E | "ConnectionGate is pushed, `App.tsx` is yours, pull now." |
+| Either of us pushes | → other | Say so. The other person's checkout is a separate machine and does not update by itself. |
 
 ## Merge cadence
 
