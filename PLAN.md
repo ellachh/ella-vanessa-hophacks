@@ -409,19 +409,23 @@ spacetime call -- food-pickup post_listing '"Donor"' '"desc"' \
 
 ### E — backend
 
-- [ ] `set_name` — upsert `user` row for `ctx.sender`
-- [ ] `post_listing` — insert with `posted_by = ctx.sender`, `claimed_by = None`
-- [ ] `claim_listing` — **conditional**: only write if `claimed_by` is `None`.
+- [x] `set_name` — upsert `user` row for `ctx.sender`
+- [x] `post_listing` — insert with `posted_by = ctx.sender`, `claimed_by = None`
+- [x] `claim_listing` — **conditional**: only write if `claimed_by` is `None`.
       This is the centerpiece. Do not simplify it into an unconditional write.
-- [ ] `unclaim_listing` — only if `claimed_by == ctx.sender`
-- [ ] `complete_listing` — only if `claimed_by == ctx.sender`
-- [ ] Test every reducer from the CLI before V ever touches it:
-      `spacetime call`, then `spacetime sql <module> "SELECT * FROM listing"`
+- [x] `unclaim_listing` — only if `claimed_by == ctx.sender`
+- [x] `complete_listing` — only if `claimed_by == ctx.sender`
+- [x] *Beyond the list:* all five validate input and return `Result<(), String>`;
+      the error strings are demo copy (see the agreed wording above)
+- [~] Test every reducer from the CLI — **PARTIAL.** `post_listing` is covered
+      (the seed run, plus the `999 999` rejection confirming validation is
+      deployed). `set_name`, `claim_listing`, `unclaim_listing` and
+      `complete_listing` have only been exercised through the UI.
 - [ ] **Prove the race.** Fire two `claim_listing` calls at the same listing as
       fast as possible and confirm exactly one wins. Save the terminal output —
-      this is demo evidence.
-- [ ] Write a seed script: 12–15 realistic Baltimore listings with plausible
-      lat/lng, donors and pickup windows
+      this is demo evidence. **STILL OPEN — the last real item in Phase 2.**
+- [x] Write a seed script — `server/seed.sh`, 15 Baltimore listings, run and
+      verified in `spacetime sql`
 - [ ] Learn `spacetime logs` for debugging
 
 ### V — frontend
@@ -440,6 +444,12 @@ spacetime call -- food-pickup post_listing '"Donor"' '"desc"' \
 **V's hard rule:** no `fetch`, no polling, no React Query, no Zustand. Rows change,
 the subscription fires, React re-renders. If you are writing data-fetching code,
 stop and re-read the client SDK docs — you have misunderstood the database.
+
+### Milestone reached
+
+**The two-laptop simultaneous-claim test passed.** Two browsers, one Maincloud
+module, both tapped the same listing; one won, the other got the rejection
+message. That is the project's central claim, demonstrated end to end.
 
 ---
 
