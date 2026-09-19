@@ -198,3 +198,25 @@ body,
   .spinner { animation: none; }
   .pin { transition: none; }
 }
+
+/* ---------- contention stress test ----------
+   A demo instrument. Collapsed until asked for, so it never competes with the
+   claim button during the normal two-laptop demo. */
+.stress__reveal {
+  margin-top: 1.5rem; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted);
+  border-bottom: 1px dashed var(--line);
+}
+.stress__reveal:hover { color: var(--text); }
+
+.stress {
+  margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.stress__lead { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+.stress__result { display: flex; flex-direction: column; gap: 0.35rem; }
+.stress__tally { font-size: 0.85rem; color: var(--muted); }
+.stress__num { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+.stress__num--won { color: #6ee7a8; }
+.stress__verdict { margin: 0.15rem 0 0; font-size: 0.85rem; line-height: 1.5; }
+.stress__reason { margin: 0; font-size: 0.78rem; color: var(--muted); }

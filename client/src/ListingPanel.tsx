@@ -3,6 +3,7 @@ import { useReducer } from 'spacetimedb/react'
 import type { Identity } from 'spacetimedb'
 
 import { listingState } from './listing'
+import StressTest from './StressTest'
 import { reducers } from './module_bindings'
 import type { Listing, User } from './module_bindings/types'
 import { pickupClock, timeLeft, urgencyOf } from './pickupWindow'
@@ -83,6 +84,11 @@ export default function ListingPanel({
         )}
         {state === 'taken' && <p className="panel__meta">Someone else is on this one.</p>}
       </div>
+
+      {/* Demo instrument, not a product feature — collapsed so nobody trips it
+          by accident, but reachable when a judge asks how deep the guarantee
+          goes. */}
+      <StressTest listing={listing} />
     </aside>
   )
 }
