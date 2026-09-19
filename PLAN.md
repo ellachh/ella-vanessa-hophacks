@@ -260,14 +260,16 @@ and fix the root file so the two sessions stay in sync.
 
 This is the most important 2 hours of the event. Do it side by side, not split.
 
-- [ ] **E+V** Agree the final schema from `CLAUDE.md`. Argue about it now, not later.
+- [x] **E+V** Agree the final schema from `CLAUDE.md`. Argue about it now, not later.
 - [x] **E** `spacetime init` a Rust module in `server/` — DONE
-- [ ] **E** Write the two table definitions (`listing`, `user`) — copy exact macro
+- [x] **E** Write the two table definitions (`listing`, `user`) — copy exact macro
       syntax from the current quickstart, not from `CLAUDE.md`
-- [ ] **E** Write all five reducers as **empty stubs** that compile and do nothing
-- [ ] **E** `spacetime publish` the stub module — confirm it publishes
-- [ ] **E** From `server/`: `spacetime generate --lang typescript --out-dir ../client/src/module_bindings`
-- [ ] **E** Commit the generated bindings
+- [x] **E** ~~Write all five reducers as **empty stubs**~~ — skipped the stub step and
+      shipped working reducers in one pass (`0bc5cbf`). Worked out, but it is why V
+      waited longer than this plan intended.
+- [x] **E** `spacetime publish` — live on Maincloud as `food-pickup`
+- [x] **E** From `server/`: `spacetime generate --lang typescript --out-dir ../client/src/module_bindings`
+- [x] **E** Commit the generated bindings (`f761e6a`)
 - [x] **V** In parallel: scaffold `client/` — Vite + React + TypeScript
 - [x] **V** Install deps: SpacetimeDB TS SDK, `leaflet`, `react-leaflet`
 - [x] **V** Import Leaflet's CSS and render a bare map centered on Baltimore.
