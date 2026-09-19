@@ -444,3 +444,10 @@ html, body, #root { height: 100%; margin: 0; }
    they act on. Under the content reads better; empty space below a panel is
    not a problem. */
 .panel__actions { margin-top: 1.3rem; }
+
+/* The claim ceiling, stated before the click rather than after the failure. */
+.panel__limit {
+  margin: 0.5rem 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted);
+}
+.panel__dir { color: var(--mine); text-decoration: none; border-bottom: 1px solid currentColor; }
+.panel__dir:hover { color: var(--text); }

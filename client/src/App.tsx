@@ -163,7 +163,14 @@ function Board() {
         ) : showMine ? (
           <MyPickups listings={mine} onSelect={jumpTo} onError={setToast} />
         ) : (
-          <ListingPanel listing={selected} users={users} me={identity} onError={setToast} />
+          <ListingPanel
+            listing={selected}
+            users={users}
+            me={identity}
+            center={center}
+            heldCount={mine.length}
+            onError={setToast}
+          />
         )}
       </main>
 

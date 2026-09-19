@@ -6,17 +6,26 @@ import { listingState } from './listing'
 import StressTest from './StressTest'
 import { reducers } from './module_bindings'
 import type { Listing, User } from './module_bindings/types'
+import { milesFrom, type LatLng } from './radius'
 import { pickupClock, timeLeft, urgencyOf } from './pickupWindow'
+
+/** Mirrors MAX_OPEN_CLAIMS in the module. Kept in sync by hand; the module is
+ *  still the one that enforces it — this only warns earlier. */
+const MAX_OPEN_CLAIMS = 3
 
 export default function ListingPanel({
   listing,
   users,
   me,
+  center,
+  heldCount,
   onError,
 }: {
   listing: Listing | null
   users: readonly User[]
   me: Identity | undefined
+  center: LatLng
+  heldCount: number
   onError: (message: string) => void
 }) {
   const claim = useReducer(reducers.claimListing)
@@ -65,13 +74,41 @@ export default function ListingPanel({
         {timeLeft(listing.pickupBy)}
       </p>
       <p className="panel__meta">Pick up by {pickupClock(listing.pickupBy)}</p>
+      <p className="panel__meta">
+        {milesFrom(center, listing).toFixed(1)} mi from your pin ·{' '}
+        {/* A plain link, so no maps SDK, no API key and nothing to break
+            offline. Opens whatever the volunteer already uses. */}
+        <a
+          className="panel__dir"
+          href={`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          Directions ↗
+        </a>
+      </p>
 
       <div className="panel__actions">
-        {state === 'open' && (
-          <button className="btn btn--primary" disabled={busy} onClick={() => run(claim)}>
-            {busy ? 'Claiming…' : 'Claim this pickup'}
-          </button>
-        )}
+        {state === 'open' &&
+          (heldCount >= MAX_OPEN_CLAIMS ? (
+            /* The module rejects this anyway. Saying so before the click turns
+               a failure into a rule — and the rule is a concurrency limit, not
+               a daily quota: delivering or releasing one frees a slot now. */
+            <>
+              <button className="btn" disabled>
+                Claim this pickup
+              </button>
+              <p className="panel__limit">
+                You're holding {heldCount} of {MAX_OPEN_CLAIMS} pickups. Deliver or
+                release one to claim another — there's no daily cap, just three at
+                a time.
+              </p>
+            </>
+          ) : (
+            <button className="btn btn--primary" disabled={busy} onClick={() => run(claim)}>
+              {busy ? 'Claiming…' : 'Claim this pickup'}
+            </button>
+          ))}
         {state === 'mine' && (
           <>
             <button className="btn btn--primary" disabled={busy} onClick={() => run(complete)}>
