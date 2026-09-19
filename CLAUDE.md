@@ -91,8 +91,15 @@ is 40 minutes we do not have.
 
 Two tables. Resist adding a third.
 
+> **Syntax below is corrected against `server/CLAUDE.md`, which is Clockwork's
+> own 2.10.1 guidance shipped by `spacetime init`. That file is ground truth for
+> module syntax — read it before writing reducers.** Two things it settled that
+> this file had wrong: the attribute is `accessor =`, not `name =` (and it is
+> `#[spacetimedb::table(...)]`), and `Table` must be in scope or `ctx.db.*.insert()`
+> will not compile.
+
 ```rust
-#[table(name = listing, public)]
+#[spacetimedb::table(accessor = listing, public)]
 pub struct Listing {
     #[primary_key] #[auto_inc]
     id: u64,
@@ -106,7 +113,7 @@ pub struct Listing {
     completed: bool,
 }
 
-#[table(name = user, public)]
+#[spacetimedb::table(accessor = user, public)]
 pub struct User {
     #[primary_key]
     identity: Identity,
