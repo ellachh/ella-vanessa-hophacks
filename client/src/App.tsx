@@ -11,7 +11,8 @@ import Toast from './Toast'
 import { sameIdentity } from './identity'
 import { tables } from './module_bindings'
 import RadiusFilter from './RadiusFilter'
-import { listingsWithin, withinRadius, type Radius } from './radius'
+import YouAreHere from './YouAreHere'
+import { listingsWithin, loadCenter, saveCenter, withinRadius, type LatLng, type Radius } from './radius'
 import './AppActions.css'
 
 /**
@@ -38,10 +39,17 @@ function Board() {
   // because a row can complete while we hold it, and the local filter is what
   // makes it leave the map in that instant.
   const [radius, setRadius] = useState<Radius>(null)
+  const [center, setCenter] = useState<LatLng>(loadCenter)
 
-  // The radius is part of the QUERY, not a filter over the result. Narrowing it
-  // re-scopes the subscription and the server stops sending those rows.
-  const [listings] = useTable(listingsWithin(radius))
+  const moveTo = useCallback((c: LatLng) => {
+    setCenter(c)
+    saveCenter(c)
+  }, [])
+
+  // The radius and the volunteer's position are part of the QUERY, not a filter
+  // over the result. Narrowing either re-scopes the subscription and the server
+  // stops sending those rows.
+  const [listings] = useTable(listingsWithin(center, radius))
   const [users] = useTable(tables.user)
 
   const [selectedId, setSelectedId] = useState<bigint | null>(null)
@@ -54,8 +62,11 @@ function Board() {
   // The server sends a bounding box; this trims it to a true circle. Two lines
   // of arithmetic over a handful of rows, not a scan over the whole table.
   const board = useMemo(
-    () => listings.filter((l) => !l.completed && isPlottable(l) && withinRadius(l, radius)),
-    [listings, radius],
+    () =>
+      listings.filter(
+        (l) => !l.completed && isPlottable(l) && withinRadius(center, l, radius),
+      ),
+    [listings, center, radius],
   )
   const selected = useMemo(
     () => board.find((l) => l.id === selectedId) ?? null,
@@ -102,7 +113,9 @@ function Board() {
             me={identity}
             selectedId={selectedId}
             onSelect={setSelectedId}
-          />
+          >
+            <YouAreHere center={center} radius={radius} onMove={moveTo} />
+          </MapView>
         </div>
         {showMine ? (
           <MyPickups listings={mine} onSelect={jumpTo} onError={setToast} />

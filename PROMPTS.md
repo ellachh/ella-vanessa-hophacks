@@ -720,3 +720,39 @@ description. See the comment on `pin()` and CLAUDE.md, Security.
 Both on `main` for phases 0–2, `git pull --rebase origin main` before every push,
 push at least hourly. Short-lived feature branches in Phase 3 only. Full rules in
 `PLAN.md` under **Git workflow and merge contract**.
+
+
+---
+
+# PHASE 6 — what each of us owns
+
+Full plan and rationale: `PLAN.md`, "PHASE 6".
+
+## Ella
+
+- [x] Radius filter, server-side — `radius.ts`, `RadiusFilter.tsx`, `YouAreHere.tsx`
+- [ ] **Spike the procedure** before building anything: can a `#[procedure]`
+      return a value to the client at all? Publish a hello-world one that does
+      no HTTP. Stop here if it fails.
+- [ ] **Resolve API key storage.** Every public table is world-readable and the
+      client bundle is public. If there is no module-level secret mechanism,
+      the runtime AI feature is off — say so and stop.
+- [ ] Only then: `ask_scraps` procedure, reading listings in a short transaction
+      and calling Grok *outside* it.
+
+## Vanessa
+
+- [ ] Rename leftovers in your files: `client/index.html`, `client/README.md`,
+      `NameGate.tsx`, `ConnectionGate.tsx`, and the `relay.token` key in
+      `main.tsx`. Changing that key gives every browser a fresh identity, so we
+      both re-set names once after it lands.
+- [ ] `MapView.tsx` now takes a `children` slot — that was E's only change to
+      your file, so E's location pin can live inside `<MapContainer>`.
+- [ ] If the AI spike clears: the ask panel. Collapsed by default, a text input,
+      the answer, and selecting the recommended pin on the map. It must degrade
+      to a plain message when the call fails.
+
+## The rule for both
+
+Stop when the next step cannot be finished properly. The build is verified right
+now; every item above is optional and none of them is worth breaking it.

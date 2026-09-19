@@ -45,6 +45,7 @@ export default function RadiusFilter({
       </div>
       <span className="radius__count">
         {shown} {shown === 1 ? 'pickup' : 'pickups'}
+        {value !== null && <span className="radius__hint"> · drag the pin to move</span>}
       </span>
     </div>
   )

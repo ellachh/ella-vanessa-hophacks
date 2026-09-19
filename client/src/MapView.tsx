@@ -18,12 +18,15 @@ export default function MapView({
   me,
   selectedId,
   onSelect,
+  children,
 }: {
   listings: readonly Listing[]
   users: readonly User[]
   me: Identity | undefined
   selectedId: bigint | null
   onSelect: (id: bigint) => void
+  /** Overlays that must live inside <MapContainer> — E's location pin. */
+  children?: React.ReactNode
 }) {
   return (
     <div className="map-wrap">
@@ -70,6 +73,7 @@ export default function MapView({
             </Marker>
           )
         })}
+        {children}
       </MapContainer>
 
       {/* Sits over the map: contention is something the board does, not a

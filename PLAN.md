@@ -220,6 +220,98 @@ spacetime call food-pickup reset_board
 
 Run it before each rehearsal and once more before judging.
 
+## PHASE 6 — radius filter (done) and the AI recommender (planned)
+
+### 1. Radius filter — SHIPPED
+
+**What a volunteer sees:** a blue "you are here" pin on the map, a shaded circle
+showing how far they will travel, and chips for 1 / 2 / 3 / 5 mi / Any. Drag the
+pin and the board re-scopes around the new position.
+
+**Why it is a SpacetimeDB demonstration and not a list filter:** the radius and
+the pin position are part of the **subscription query**. `listingsWithin()`
+builds `.gte()`/`.lte()` bounds on `lat` and `lng`, so narrowing the radius makes
+the server stop producing those rows — they are never sent. Open DevTools →
+Network → WS and shrink the radius; traffic drops.
+
+**Bounding box server-side, true circle client-side.** The query builder compares
+columns to literals and has no trigonometry, so the server does the huge cheap
+reduction and `withinRadius()` trims the corners over the handful of rows that
+survive. There is a test proving the trim rejects a point the box admits.
+
+**The count reads "7 pickups", never "7 of 15" — on purpose.** We cannot know the
+total; those rows were never sent. Displaying one would mean subscribing to the
+whole table, which is the thing being avoided. *The number being un-knowable is
+the feature working*, and that is the line to use if a judge asks.
+
+**Files:** `radius.ts`, `RadiusFilter.tsx`, `YouAreHere.tsx`, `RadiusFilter.css`
+(E). One additive change to `MapView.tsx` (V's): a `children` slot, because
+react-leaflet overlays must live inside `<MapContainer>`. Nothing else of V's
+was touched.
+
+**Pin position persists** in `localStorage` under `scraps.center`, wrapped in
+try/catch. Per-viewer convenience only — never shared, never read back by us.
+
+---
+
+### 2. AI recommender — PLANNED, NOT BUILT
+
+**What a volunteer should be able to ask**, in their own words:
+
+> "What are you in the mood for?" → *"something sweet"* → the model picks from
+> the pickups actually on the board and says why.
+>
+> "Where's the nearest bagel pickup?" → it knows both the listings *and* where
+> the volunteer's pin is.
+
+**The distinctive version: run it as a SpacetimeDB `#[procedure]`.**
+
+Procedures exist precisely for side effects — outbound HTTP lives on
+`ctx.http` — and unlike RLS they are **not** behind the crate's `unstable`
+feature. So the database itself can call the model. Almost nobody at a hackathon
+will do that; a React component calling an API is the most-seen feature there is.
+
+Shape:
+
+```rust
+#[procedure]
+pub fn ask_scraps(ctx: &mut ProcedureContext, question: String,
+                  lat: f64, lng: f64) -> Suggestion
+```
+
+1. Read the open listings inside a short `ctx.with_tx(...)`
+2. **Close the transaction, then** call Grok — the guidance is explicit that
+   network I/O happens before opening a transaction, not inside one
+3. Return the model's answer plus the `listing_id` it picked, so the client can
+   select that pin on the map
+
+#### Blocking unknown: where the API key lives
+
+`listing`, `user` and `claim_attempt` are all `public`, which means genuinely
+world-readable — a key in any of them is extractable by anyone who connects.
+A key in the client bundle is worse. **Resolve this before writing the feature:**
+find whether SpacetimeDB 2.10.1 offers a module-level setting or secret store
+that is not a public table. If it does not, the runtime version is off, and the
+answer is V's build-time `tools/generate-listings.mjs` approach, which already
+gives us the xAI story with no key shipped anywhere.
+
+#### Other risks, and the mitigations
+
+| Risk | Mitigation |
+|---|---|
+| xAI slow or down mid-demo | Client-side timeout, graceful "couldn't reach the model" copy. The feature is collapsed by default so a failure never breaks the board. |
+| Procedures are newer ground (`TODO(procedure-async)` in the crate) | Spike it in isolation first. Nothing touches the published module until a hello-world procedure returns a value to the client. |
+| A judge asks whether the AI is load-bearing | It is not, and say so. The contested claim is the argument; this is a convenience on top. |
+
+#### Stop rule
+
+Spike → key storage resolved → hello-world procedure → the real one. **If any
+step fails, stop and keep the build as it is.** Under a polish criterion a
+half-built AI panel is worse than none, and `demo-v1` plus today's verified
+build are what we are protecting.
+
+---
+
 ## VERIFICATION LOG — everything below has been run against Maincloud
 
 Nothing in this project is asserted without having been run. Final pass:
