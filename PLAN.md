@@ -1326,6 +1326,28 @@ param shape for a procedure is a single object (`geocode({ address })`) the way
 it is for a reducer. If it turns out to be positional, it is a one-line change
 per call site and `tsc` will say so immediately.
 
+## Three unknowns that only a live database will settle
+
+Listed because each has a cheap first test, and doing that test before the
+rehearsal is much better than finding out during one.
+
+1. **Is 140 KB under SpacetimeDB's row or message limit?** `MAX_PHOTO_CHARS`
+   was picked to be comfortably small, not against a documented ceiling — the
+   limit is not something the sandbox could check. **First test: post one
+   listing with one photo.** If the insert is rejected, lower the constant in
+   `lib.rs` *and* `photo.ts` together and drop `MAX_EDGE` to 480; they are
+   mirrored on purpose and the client cap must not exceed the module's.
+2. **Can Maincloud reach `nominatim.openstreetmap.org`?** The procedure is
+   written correctly; whether the host's egress allows it is a separate
+   question. It also rate-limits to roughly one request a second per IP, and
+   Maincloud is shared infrastructure, so a 429 is possible. Either way it
+   fails to a sentence and the pin drop still works. **Do not put the address
+   lookup on the demo critical path** — set the profile up beforehand.
+3. **Is a procedure's generated parameter shape a single object?** The client
+   calls `geocode({ address })` the way reducers take one params object. If
+   codegen emits positional parameters instead, `tsc` says so immediately and
+   it is a one-line fix at each of the two call sites.
+
 ## Things worth knowing before demoing this
 
 - **The photo is the only user-supplied thing on the board that is not text.**
