@@ -14,7 +14,7 @@ paste it in, republish.
 
 ### Why this is a tool and not a feature
 
-Scraps's write path is SpacetimeDB reducers, and **reducers must be
+The write path is SpacetimeDB reducers, and **reducers must be
 deterministic** — no network, no filesystem, no wall clock. That is not a
 limitation we are working around. It is the same all-or-nothing transaction
 property that makes two simultaneous claims resolve to exactly one winner: a

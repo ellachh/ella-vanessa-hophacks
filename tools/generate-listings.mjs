@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Generates seed listings for the Relay board using xAI's Grok.
+ * Generates seed listings for the Scraps board using xAI's Grok.
  *
  * WHY THIS IS A BUILD-TIME TOOL AND NOT A FEATURE
  *
- * Relay's write path is SpacetimeDB reducers, and reducers must be
+ * The write path is SpacetimeDB reducers, and reducers must be
  * deterministic — no network, no filesystem, no wall clock. That is not an
  * inconvenience we are routing around: it is the same all-or-nothing property
  * that makes two simultaneous claims resolve to exactly one winner. A reducer

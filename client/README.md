@@ -1,4 +1,4 @@
-# Relay — client
+# Scraps — client
 
 React + TypeScript + Vite. The board, the map, and everything a volunteer
 touches. The backend lives in `../server`.

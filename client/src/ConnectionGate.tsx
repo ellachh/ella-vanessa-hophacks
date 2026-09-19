@@ -35,7 +35,7 @@ export default function ConnectionGate({ children }: { children: ReactNode }) {
         <div className="gate__card gate__card--center">
           <h1 className="gate__title">Can't reach the board</h1>
           <p className="gate__sub">
-            Relay needs internet to reach the database — it is hosted, not on
+            Scraps needs internet to reach the database — it is hosted, not on
             this laptop. Check the wifi, then reload.
           </p>
           <p className="gate__error">{connectionError.message}</p>
