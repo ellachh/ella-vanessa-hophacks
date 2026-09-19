@@ -365,6 +365,32 @@ looks like.
 
 ---
 
+## Calling reducers from the CLI: the Timestamp argument
+
+`spacetime call` does **not** accept a bare integer for a `Timestamp`. The
+reducer signature reports it as a wrapped type:
+
+```
+post_listing(donor: String, description: String,
+             pickup_by: { __timestamp_micros_since_unix_epoch__: i64 },
+             lat: f64, lng: f64)
+```
+
+Passing `0` fails with ``invalid type: integer `0`, expected a 1-element tuple``.
+The working form is:
+
+```bash
+spacetime call food-pickup post_listing \
+  '"Pratt Street Bakehouse"' \
+  '"About 20 day-old bagels"' \
+  '{"__timestamp_micros_since_unix_epoch__": 1790000000000000}' \
+  '39.2857' '-76.6100'
+```
+
+`server/seed.sh` handles this via its `ts_arg` helper. Run it from `server/`.
+
+---
+
 ## Phase 2 — Parallel build (hours 2–10)
 
 ### E — backend
