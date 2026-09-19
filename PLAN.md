@@ -389,6 +389,20 @@ spacetime call food-pickup post_listing \
   '39.2857' '-76.6100'
 ```
 
+### `spacetime sql` is a restricted dialect — no `IS NULL`
+
+`WHERE claimed_by IS NULL` fails with `Unsupported expression: claimed_by IS NULL`.
+Option columns cannot be tested that way. Select the column and read it instead —
+`None` prints as `(none = ())`:
+
+```bash
+spacetime sql food-pickup "SELECT id, donor, claimed_by FROM listing"
+```
+
+Assume any SQL beyond simple `SELECT ... WHERE <column> = <value>` may be
+unsupported, and check rather than guess. This is CLI-side only — the client
+never writes SQL at all in 2.x, it uses the query builder.
+
 ### Negative numbers need `--`
 
 Baltimore longitudes are negative. Without a `--` separator the CLI parses
