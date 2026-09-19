@@ -180,22 +180,46 @@ Vanessa gets typed bindings without building the Rust module.
 
 ---
 
-## BLOCKER: CLI and SDK versions must match
+## Resolved: toolchain facts (confirmed, stop re-deriving these)
 
-V has installed `spacetimedb@2.10.1` on the client. The bindings E generates must
-target that same major version, because `spacetime generate` emits imports whose
-package name and API shape follow the CLI that produced them. A 1.x CLI emits
-bindings that will not compile against a 2.x SDK.
+| Fact | Value |
+|---|---|
+| `spacetime` CLI (E) | **2.10.1** |
+| `spacetimedb` npm SDK (V) | **2.10.1** |
+| Versions match? | **Yes — verified.** Bindings will line up. |
+| Database name | `food-pickup` |
+| Deploy target | Maincloud |
+| Rust module location | **`server/spacetimedb/`** — not `server/` |
 
-**Check this before generating anything:**
+The CLI and SDK majors must stay matched: `spacetime generate` emits imports
+whose package name and API shape follow the CLI that produced them. If either
+side upgrades, re-check both and regenerate.
+
+### The module is NOT at `server/`
+
+`spacetime init --lang rust server` creates a wrapper at `server/` and puts the
+actual Cargo project one level down, under `server/spacetimedb/`. Running
+`cargo check` at `server/` fails with "could not find `Cargo.toml`". That is the
+wrong directory, not a broken install.
 
 ```bash
-spacetime --version      # E: must be 2.x
-cd client && npm ls spacetimedb   # V: currently 2.10.1
+find server -name Cargo.toml    # if ever unsure
 ```
 
-If E's CLI is 1.x, upgrade it before Phase 1 rather than debugging mismatched
-bindings later. Confirm the two out loud at the handoff.
+### The template ships first-party agent instructions — use them
+
+`spacetime init` drops the same 20KB of guidance into `server/` three times, once
+per AI tool: `CLAUDE.md`, `AGENTS.md`, `.windsurfrules`.
+
+**Do not delete these.** They are Clockwork's own version-matched instructions,
+and they outrank this repo's root `CLAUDE.md` on every question of SpacetimeDB
+API syntax. Our root brief was written partly from memory and its Rust snippets
+are explicitly shape-not-gospel; the template's file is ground truth for 2.10.1.
+
+Claude Code loads nested `CLAUDE.md` files for work in their subtree, so a
+session working in `server/` picks this up automatically. Read it before writing
+reducers. **Where it disagrees with our root `CLAUDE.md`, the template wins** —
+and fix the root file so the two sessions stay in sync.
 
 ---
 
