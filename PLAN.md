@@ -426,14 +426,16 @@ spacetime call -- food-pickup post_listing '"Donor"' '"desc"' \
 
 ### V — frontend
 
-- [ ] Connect to the module via `SpacetimeDBProvider`; read rows with
+- [x] Connect to the module via `SpacetimeDBProvider`; read rows with
       `useTable(tables.listing)` and `useTable(tables.user)` (2.x has no SQL
       strings client-side — see `CLAUDE.md` under Client architecture)
-- [ ] Render listings as map markers, driven **only** by the subscription
-- [ ] Name-entry screen on first load (calls `set_name`)
-- [ ] Listing detail panel with a Claim button
-- [ ] Open vs. claimed visual states — claimed must be obviously different at a glance
-- [ ] Basic layout and styling
+- [x] Render listings as map markers, driven **only** by the subscription
+- [x] Name-entry screen on first load (calls `set_name`)
+- [x] Listing detail panel with a Claim button — verified live, two identities
+- [x] Open vs. claimed visual states — verified: a claim in one browser greys the
+      pin in the other with no refresh
+- [x] Basic layout and styling
+- [x] *Beyond the list:* race-error toast, so the losing claimant sees why
 
 **V's hard rule:** no `fetch`, no polling, no React Query, no Zustand. Rows change,
 the subscription fires, React re-renders. If you are writing data-fetching code,
