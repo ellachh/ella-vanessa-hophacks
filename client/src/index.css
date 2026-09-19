@@ -503,3 +503,17 @@ html, body, #root { height: 100%; margin: 0; }
 .shopfront .btn {
   margin-top: 0.55rem;
 }
+
+/* In volunteer mode ListingPanel sits inside E's `.panel--stack`, under the
+   assistant, in a column that scrolls. A 400px-wide photo at 4/3 is 300px of
+   that column, and the one thing that must never fall below the fold is the
+   claim button — it is the demo. So cap the photo in the stacked case only;
+   in donor mode and on its own the panel keeps the full aspect ratio.
+
+   Reasoned, not seen: the client cannot run here until the module is
+   published. Look at a listing that has a photo, in volunteer mode, before
+   rehearsing. */
+.panel--stack .panel__photo {
+  aspect-ratio: auto;
+  max-height: 150px;
+}
