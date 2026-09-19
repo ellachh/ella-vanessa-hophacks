@@ -34,25 +34,40 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import ArmExpiryReducer from "./arm_expiry_reducer";
 import ClaimListingReducer from "./claim_listing_reducer";
 import CompleteListingReducer from "./complete_listing_reducer";
 import PostListingReducer from "./post_listing_reducer";
+import SeedBoardReducer from "./seed_board_reducer";
 import SetNameReducer from "./set_name_reducer";
 import UnclaimListingReducer from "./unclaim_listing_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import ClaimAttemptRow from "./claim_attempt_table";
 import ListingRow from "./listing_table";
+import MyPickupsRow from "./my_pickups_table";
 import UserRow from "./user_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  claimAttempt: __table({
+    name: 'claim_attempt',
+    indexes: [
+    ],
+    constraints: [
+    ],
+    event: true,
+  }, ClaimAttemptRow),
   listing: __table({
     name: 'listing',
     indexes: [
+      { accessor: 'completed', name: 'listing_completed_idx_btree', algorithm: 'btree', columns: [
+        'completed',
+      ] },
       { accessor: 'id', name: 'listing_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -72,13 +87,22 @@ const tablesSchema = __schema({
       { name: 'user_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
   }, UserRow),
+  myPickups: __table({
+    name: 'my_pickups',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyPickupsRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("arm_expiry", ArmExpiryReducer),
   __reducerSchema("claim_listing", ClaimListingReducer),
   __reducerSchema("complete_listing", CompleteListingReducer),
   __reducerSchema("post_listing", PostListingReducer),
+  __reducerSchema("seed_board", SeedBoardReducer),
   __reducerSchema("set_name", SetNameReducer),
   __reducerSchema("unclaim_listing", UnclaimListingReducer),
 );
@@ -87,22 +111,69 @@ const reducersSchema = __reducers(
 const proceduresSchema = __procedures(
 );
 
+type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
+  tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `claimAttempt` instead. This alias will be removed in the next major version. */
+    readonly "claim_attempt": Omit<typeof tablesSchema.schemaType.tables["claimAttempt"], "accessorName"> & { readonly accessorName: "claim_attempt" };
+    /** @deprecated Use `myPickups` instead. This alias will be removed in the next major version. */
+    readonly "my_pickups": Omit<typeof tablesSchema.schemaType.tables["myPickups"], "accessorName"> & { readonly accessorName: "my_pickups" };
+  };
+};
+
 /** The remote SpacetimeDB module schema, both runtime and type information. */
 const REMOTE_MODULE = {
   versionInfo: {
     cliVersion: "2.10.1" as const,
   },
-  tables: tablesSchema.schemaType.tables,
+  tables: tablesSchema.schemaType.tables as __SchemaWithTableAccessorAliases["tables"],
   reducers: reducersSchema.reducersType.reducers,
   ...proceduresSchema,
 } satisfies __RemoteModule<
-  typeof tablesSchema.schemaType,
+  __SchemaWithTableAccessorAliases,
   typeof reducersSchema.reducersType,
   typeof proceduresSchema
 >;
 
+const tableAccessorAliases = {
+  "claim_attempt": "claimAttempt",
+  "my_pickups": "myPickups",
+} as const;
+
+function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
+  const out = Object.create(Object.getPrototypeOf(target)) as T & Record<string, unknown>;
+  Object.defineProperties(out, Object.getOwnPropertyDescriptors(target));
+  for (const [deprecatedAccessor, targetAccessor] of Object.entries(tableAccessorAliases)) {
+    if (deprecatedAccessor in out) {
+      continue;
+    }
+    Object.defineProperty(out, deprecatedAccessor, {
+      enumerable: true,
+      configurable: false,
+      get: () => out[targetAccessor],
+    });
+  }
+  return freeze ? Object.freeze(out) : out;
+}
+
+type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
+export type DbView = __DbViewBase & {
+  /** @deprecated Use `claimAttempt` instead. This alias will be removed in the next major version. */
+  readonly "claim_attempt": __DbViewBase["claimAttempt"];
+  /** @deprecated Use `myPickups` instead. This alias will be removed in the next major version. */
+  readonly "my_pickups": __DbViewBase["myPickups"];
+};
+
+type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
+export type Tables = __TablesBase & {
+  /** @deprecated Use `claimAttempt` instead. This alias will be removed in the next major version. */
+  readonly "claim_attempt": __TablesBase["claimAttempt"];
+  /** @deprecated Use `myPickups` instead. This alias will be removed in the next major version. */
+  readonly "my_pickups": __TablesBase["myPickups"];
+};
+
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */
-export const tables: __QueryBuilder<typeof tablesSchema.schemaType> = __makeQueryBuilder(tablesSchema.schemaType);
+const tablesBase: __TablesBase = __makeQueryBuilder(tablesSchema.schemaType);
+export const tables: Tables = __withTableAccessorAliases(tablesBase, true) as Tables;
 
 /** The reducers available in this remote SpacetimeDB module. */
 export const reducers = __convertToAccessorMap(reducersSchema.reducersType.reducers);
@@ -111,13 +182,13 @@ export const reducers = __convertToAccessorMap(reducersSchema.reducersType.reduc
 export const procedures = __convertToAccessorMap(proceduresSchema.procedures);
 
 /** The context type returned in callbacks for all possible events. */
-export type EventContext = __EventContextInterface<typeof REMOTE_MODULE>;
+export type EventContext = Omit<__EventContextInterface<typeof REMOTE_MODULE>, "db"> & { db: DbView };
 /** The context type returned in callbacks for reducer events. */
-export type ReducerEventContext = __ReducerEventContextInterface<typeof REMOTE_MODULE>;
+export type ReducerEventContext = Omit<__ReducerEventContextInterface<typeof REMOTE_MODULE>, "db"> & { db: DbView };
 /** The context type returned in callbacks for subscription events. */
-export type SubscriptionEventContext = __SubscriptionEventContextInterface<typeof REMOTE_MODULE>;
+export type SubscriptionEventContext = Omit<__SubscriptionEventContextInterface<typeof REMOTE_MODULE>, "db"> & { db: DbView };
 /** The context type returned in callbacks for error events. */
-export type ErrorContext = __ErrorContextInterface<typeof REMOTE_MODULE>;
+export type ErrorContext = Omit<__ErrorContextInterface<typeof REMOTE_MODULE>, "db"> & { db: DbView };
 /** The subscription handle type to manage active subscriptions created from a {@link SubscriptionBuilder}. */
 export type SubscriptionHandle = __SubscriptionHandleImpl<typeof REMOTE_MODULE>;
 
@@ -129,6 +200,13 @@ export class DbConnectionBuilder extends __DbConnectionBuilder<DbConnection> {}
 
 /** The typed database connection to manage connections to the remote SpacetimeDB instance. This class has type information specific to the generated module. */
 export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
+  declare db: DbView;
+
+  constructor(config: __DbConnectionConfig<typeof REMOTE_MODULE>) {
+    super(config);
+    this.db = __withTableAccessorAliases(this.db) as DbView;
+  }
+
   /** Creates a new {@link DbConnectionBuilder} to configure and connect to the remote SpacetimeDB instance. */
   static builder = (): DbConnectionBuilder => {
     return new DbConnectionBuilder(REMOTE_MODULE, (config: __DbConnectionConfig<typeof REMOTE_MODULE>) => new DbConnection(config));

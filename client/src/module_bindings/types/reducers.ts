@@ -6,15 +6,19 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import ArmExpiryReducer from "../arm_expiry_reducer";
 import ClaimListingReducer from "../claim_listing_reducer";
 import CompleteListingReducer from "../complete_listing_reducer";
 import PostListingReducer from "../post_listing_reducer";
+import SeedBoardReducer from "../seed_board_reducer";
 import SetNameReducer from "../set_name_reducer";
 import UnclaimListingReducer from "../unclaim_listing_reducer";
 
+export type ArmExpiryParams = __Infer<typeof ArmExpiryReducer>;
 export type ClaimListingParams = __Infer<typeof ClaimListingReducer>;
 export type CompleteListingParams = __Infer<typeof CompleteListingReducer>;
 export type PostListingParams = __Infer<typeof PostListingReducer>;
+export type SeedBoardParams = __Infer<typeof SeedBoardReducer>;
 export type SetNameParams = __Infer<typeof SetNameReducer>;
 export type UnclaimListingParams = __Infer<typeof UnclaimListingReducer>;
 
