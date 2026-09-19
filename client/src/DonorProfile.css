@@ -1,0 +1,27 @@
+/* The address field and its lookup button share a row: the button is the
+   action on the field, not a separate step, and putting it underneath made it
+   read as "save". */
+.geo {
+  display: flex;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
+.geo__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.geo__go {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Confirmation that the pin moved, and to where. A geocoder that silently
+   relocates a pin is worse than one that fails loudly. */
+.geo__found {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--mine);
+}

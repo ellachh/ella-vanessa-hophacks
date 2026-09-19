@@ -7,20 +7,28 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import ArmExpiryReducer from "../arm_expiry_reducer";
+import AttachPhotoReducer from "../attach_photo_reducer";
 import ClaimListingReducer from "../claim_listing_reducer";
 import CompleteListingReducer from "../complete_listing_reducer";
 import PostListingReducer from "../post_listing_reducer";
+import PostListingWithPhotoReducer from "../post_listing_with_photo_reducer";
+import RemovePhotoReducer from "../remove_photo_reducer";
 import ResetBoardReducer from "../reset_board_reducer";
+import SaveDonorProfileReducer from "../save_donor_profile_reducer";
 import SeedBoardReducer from "../seed_board_reducer";
 import SetNameReducer from "../set_name_reducer";
 import SetSecretReducer from "../set_secret_reducer";
 import UnclaimListingReducer from "../unclaim_listing_reducer";
 
 export type ArmExpiryParams = __Infer<typeof ArmExpiryReducer>;
+export type AttachPhotoParams = __Infer<typeof AttachPhotoReducer>;
 export type ClaimListingParams = __Infer<typeof ClaimListingReducer>;
 export type CompleteListingParams = __Infer<typeof CompleteListingReducer>;
 export type PostListingParams = __Infer<typeof PostListingReducer>;
+export type PostListingWithPhotoParams = __Infer<typeof PostListingWithPhotoReducer>;
+export type RemovePhotoParams = __Infer<typeof RemovePhotoReducer>;
 export type ResetBoardParams = __Infer<typeof ResetBoardReducer>;
+export type SaveDonorProfileParams = __Infer<typeof SaveDonorProfileReducer>;
 export type SeedBoardParams = __Infer<typeof SeedBoardReducer>;
 export type SetNameParams = __Infer<typeof SetNameReducer>;
 export type SetSecretParams = __Infer<typeof SetSecretReducer>;

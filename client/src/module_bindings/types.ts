@@ -18,11 +18,37 @@ export const ClaimAttempt = __t.object("ClaimAttempt", {
 });
 export type ClaimAttempt = __Infer<typeof ClaimAttempt>;
 
+export const DescriptionDraft = __t.object("DescriptionDraft", {
+  ok: __t.bool(),
+  text: __t.string(),
+  error: __t.string(),
+});
+export type DescriptionDraft = __Infer<typeof DescriptionDraft>;
+
+export const DonorProfile = __t.object("DonorProfile", {
+  identity: __t.identity(),
+  name: __t.string(),
+  bio: __t.string(),
+  address: __t.string(),
+  lat: __t.f64(),
+  lng: __t.f64(),
+});
+export type DonorProfile = __Infer<typeof DonorProfile>;
+
 export const ExpiryTick = __t.object("ExpiryTick", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
 });
 export type ExpiryTick = __Infer<typeof ExpiryTick>;
+
+export const GeoResult = __t.object("GeoResult", {
+  ok: __t.bool(),
+  lat: __t.f64(),
+  lng: __t.f64(),
+  label: __t.string(),
+  error: __t.string(),
+});
+export type GeoResult = __Infer<typeof GeoResult>;
 
 export const Listing = __t.object("Listing", {
   id: __t.u64(),
@@ -36,6 +62,13 @@ export const Listing = __t.object("Listing", {
   completed: __t.bool(),
 });
 export type Listing = __Infer<typeof Listing>;
+
+export const ListingPhoto = __t.object("ListingPhoto", {
+  listingId: __t.u64(),
+  dataUri: __t.string(),
+  postedBy: __t.identity(),
+});
+export type ListingPhoto = __Infer<typeof ListingPhoto>;
 
 export const Secret = __t.object("Secret", {
   name: __t.string(),

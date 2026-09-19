@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import type { Identity } from 'spacetimedb'
+import { useTable } from 'spacetimedb/react'
 
+import DonorProfileForm from './DonorProfileForm'
 import { sameIdentity } from './identity'
+import { tables } from './module_bindings'
 import type { Listing, User } from './module_bindings/types'
 import { pickupClock, timeLeft, urgencyOf } from './pickupWindow'
 
@@ -20,17 +24,55 @@ export default function RestaurantView({
   users,
   me,
   onPost,
+  onError,
 }: {
   listings: readonly Listing[]
   users: readonly User[]
   me: Identity | undefined
   onPost: () => void
+  onError: (message: string) => void
 }) {
   const posted = listings.filter((l) => sameIdentity(l.postedBy, me))
+  const [profiles] = useTable(tables.donorProfile)
+  const mine = profiles.find((p) => sameIdentity(p.identity, me))
+  const [editing, setEditing] = useState(false)
 
   return (
     <aside className="panel">
+      {editing && (
+        <DonorProfileForm
+          existing={mine}
+          onClose={() => setEditing(false)}
+          onError={onError}
+        />
+      )}
+
       <span className="badge badge--open">Donor</span>
+
+      {/* The shopfront, above the listings, because it is the thing a donor
+          sets up first and then rarely touches. */}
+      {mine ? (
+        <div className="shopfront">
+          <h2 className="panel__donor shopfront__name">{mine.name}</h2>
+          {mine.bio && <p className="panel__bio">{mine.bio}</p>}
+          {mine.address && <p className="panel__meta">{mine.address}</p>}
+          <button type="button" className="btn btn--small" onClick={() => setEditing(true)}>
+            Edit details
+          </button>
+        </div>
+      ) : (
+        <div className="shopfront shopfront--empty">
+          <h2 className="panel__donor shopfront__name">Set up your restaurant</h2>
+          <p className="panel__desc">
+            Add your name, a line about who you are, and your address once. Every
+            pickup you post will start from it.
+          </p>
+          <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
+            Add your details
+          </button>
+        </div>
+      )}
+
       <h2 className="panel__donor">What you posted</h2>
 
       {posted.length === 0 ? (

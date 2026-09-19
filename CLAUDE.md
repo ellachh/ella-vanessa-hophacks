@@ -119,8 +119,8 @@ is 40 minutes we do not have.
 
 ## Data model
 
-**Four tables as of Phase 5.** The original rule here was "two tables, resist a
-third". That rule is **deliberately lifted**, not broken: the Phase 5 goal is to
+**Four tables as of Phase 5; seven as of Phase 7.** The original rule here was
+"two tables, resist a third". That rule is **deliberately lifted**, not broken: the Phase 5 goal is to
 show logic, scheduling, broadcast and server-side views all living inside the
 database, and each new table earns its place against that. It is not licence to
 keep adding them — `pickup_contact` was designed, attempted and then cut (see
@@ -174,6 +174,36 @@ pub struct ExpiryTick {
 }
 ```
 
+Phase 7 added two more, and **both are tables rather than columns for the same
+reason** — trap #9 means a new column on a live table needs a default and an
+`Identity` column cannot have one, so extending `listing` or `user` in place
+was never available:
+
+```rust
+// A restaurant's standing details. Typed once, not once per listing.
+#[spacetimedb::table(accessor = donor_profile, public)]
+pub struct DonorProfile {
+    #[primary_key]
+    identity: Identity,
+    name: String,
+    bio: String,
+    address: String,   // free text; lat/lng stay authoritative
+    lat: f64,
+    lng: f64,
+}
+
+// Separate from `listing` because a photo is ~1000x a listing row and every
+// client subscribes to the board. Clients subscribe to this scoped to the
+// listing they are looking at.
+#[spacetimedb::table(accessor = listing_photo, public)]
+pub struct ListingPhoto {
+    #[primary_key]
+    listing_id: u64,
+    data_uri: String,  // data:image/jpeg;base64,… capped at 140_000 chars
+    posted_by: Identity,
+}
+```
+
 Plus a per-user view, `#[spacetimedb::view(accessor = my_pickups, public)]`,
 returning the listings `ctx.sender()` currently holds — server-computed rather
 than filtered in React.
@@ -222,6 +252,26 @@ Deliberate choices:
 | Reducer | Behavior |
 |---|---|
 | `expire_listings(tick)` | Every 30s: deletes listings past `pickup_by` **that nobody claimed**. Claimed ones are left alone — a volunteer may be en route past the window. |
+
+**Donor-side** — added in Phase 7:
+
+| Reducer | Behavior |
+|---|---|
+| `save_donor_profile(name, bio, address, lat, lng)` | Upsert `donor_profile` for `ctx.sender`. Identity is never a parameter. |
+| `post_listing_with_photo(donor, description, pickup_by, lat, lng, photo)` | Listing and photo in one transaction. Empty `photo` means none. `post_listing` is unchanged. |
+| `attach_photo(listing_id, data_uri)` | Only if `listing.posted_by == ctx.sender` |
+| `remove_photo(listing_id)` | Only if `photo.posted_by == ctx.sender` |
+
+**Procedures** — the database calling *out*:
+
+| Procedure | Behavior |
+|---|---|
+| `geocode(address)` | OpenStreetMap lookup. Runs here because Nominatim's policy wants a descriptive `User-Agent` and a browser cannot set one — see trap #11. |
+| `suggest_description(donor, note)` | Grok drafts a listing description. Key read from the private `secret` table. |
+
+Both return a struct carrying either a result or a sentence to show. Neither
+panics, and neither is load-bearing: if the model or the geocoder is down, the
+donor types the description and drops the pin by hand, exactly as before.
 
 **Operational** — because `init` only fires on a fresh database (trap #9):
 
@@ -293,6 +343,14 @@ needs a human-readable name.
 `localStorage` token. Clear site data or use a fresh incognito window and you are
 a different volunteer, with no name and no claims. Fine for a demo; do not clear
 storage between rehearsals.
+
+**Photos are the only non-text thing on the board**, and they arrive from
+anonymous clients like everything else. They are checked twice against the same
+three `data:image/...;base64,` prefixes — `check_photo` in the module and
+`isSafePhotoSrc` in the client — before one reaches an `<img src>`. Neither
+check is the only one. An `<img>` does not execute script even for an SVG
+payload, but "user data never reaches an unescaped sink" covers `src` as much
+as `innerHTML`, and the test is two string comparisons.
 
 **Client-side, one concrete trap:** Leaflet's `bindPopup()` takes an HTML string
 and does not escape it. Listing text is free-form input from any anonymous
@@ -400,6 +458,14 @@ All genuinely interesting client work happens in TypeScript.
    runs neither the seed nor the expiry timer. `seed_board` and `arm_expiry`
    exist to do each on a live database without `--delete-data=always`. Both are
    idempotent.
+
+11. **A browser cannot set `User-Agent` on `fetch`.** It is on the forbidden
+   header list and is dropped silently — no error, no warning. OpenStreetMap's
+   Nominatim asks callers to identify themselves that way, so a browser-side
+   geocode cannot comply with their policy no matter how it is written. The
+   `geocode` procedure exists because of this: a module *can* set the header.
+   This is the cleanest example in the project of logic living in the database
+   because it has to, not because it reads well.
 
 ## Pre-hackathon setup (do this before the clock starts)
 

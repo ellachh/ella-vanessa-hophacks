@@ -7,7 +7,13 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
 import * as AskScrapsProcedure from "../ask_scraps_procedure";
+import * as GeocodeProcedure from "../geocode_procedure";
+import * as SuggestDescriptionProcedure from "../suggest_description_procedure";
 
 export type AskScrapsArgs = __Infer<typeof AskScrapsProcedure.params>;
 export type AskScrapsResult = __Infer<typeof AskScrapsProcedure.returnType>;
+export type GeocodeArgs = __Infer<typeof GeocodeProcedure.params>;
+export type GeocodeResult = __Infer<typeof GeocodeProcedure.returnType>;
+export type SuggestDescriptionArgs = __Infer<typeof SuggestDescriptionProcedure.params>;
+export type SuggestDescriptionResult = __Infer<typeof SuggestDescriptionProcedure.returnType>;
 

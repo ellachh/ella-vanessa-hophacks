@@ -451,3 +451,69 @@ html, body, #root { height: 100%; margin: 0; }
 }
 .panel__dir { color: var(--mine); text-decoration: none; border-bottom: 1px solid currentColor; }
 .panel__dir:hover { color: var(--text); }
+
+/* --- Small button, photos, and the donor shopfront ---------------------- */
+
+.btn--small {
+  padding: 0.38rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+/* A photo is the one piece of a listing that arrived as bytes from another
+   client, so it is boxed to a fixed aspect and never allowed to push the
+   panel's layout around. `background` shows while it decodes. */
+.panel__photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin: 0.15rem 0 0.7rem;
+}
+
+.panel__bio {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.shopfront {
+  align-self: stretch;
+  padding: 0.85rem 0.9rem 0.9rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.shopfront--empty {
+  border-style: dashed;
+}
+
+.shopfront__name {
+  margin-top: 0;
+  margin-bottom: 0.35rem;
+  font-size: 1.3rem;
+}
+
+.shopfront .btn {
+  margin-top: 0.55rem;
+}
+
+/* In volunteer mode ListingPanel sits inside E's `.panel--stack`, under the
+   assistant, in a column that scrolls. A 400px-wide photo at 4/3 is 300px of
+   that column, and the one thing that must never fall below the fold is the
+   claim button — it is the demo. So cap the photo in the stacked case only;
+   in donor mode and on its own the panel keeps the full aspect ratio.
+
+   Reasoned, not seen: the client cannot run here until the module is
+   published. Look at a listing that has a photo, in volunteer mode, before
+   rehearsing. */
+.panel--stack .panel__photo {
+  aspect-ratio: auto;
+  max-height: 150px;
+}

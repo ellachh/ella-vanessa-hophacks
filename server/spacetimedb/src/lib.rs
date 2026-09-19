@@ -87,6 +87,51 @@ pub struct ExpiryTick {
     pub scheduled_at: ScheduleAt,
 }
 
+/// A donor's standing details, so a restaurant types them once instead of once
+/// per listing.
+///
+/// A separate table rather than columns on `user`: adding a column to a table
+/// that already holds rows needs a default-value annotation, and on a live
+/// database there is no way around that short of `--delete-data`. New tables
+/// migrate cleanly. See CLAUDE.md trap #9 — this table exists in this shape
+/// *because* of that trap.
+///
+/// `public`, so a volunteer can read the bio of whoever posted a pickup. That
+/// is the point: it is the restaurant's shopfront. Nothing private belongs
+/// here — every client receives every row.
+#[spacetimedb::table(accessor = donor_profile, public)]
+pub struct DonorProfile {
+    #[primary_key]
+    pub identity: Identity,
+    pub name: String,
+    pub bio: String,
+    /// Free text, exactly as the donor typed it. Shown to volunteers and used
+    /// for directions. `lat`/`lng` remain the authoritative location — this is
+    /// the human-readable form of it, not a second source of truth.
+    pub address: String,
+    pub lat: f64,
+    pub lng: f64,
+}
+
+/// A photo of the food, in its own table on purpose.
+///
+/// A photo is two orders of magnitude larger than a listing row, and every
+/// client subscribes to every open listing. Keeping the image out of `listing`
+/// means the board stays cheap to subscribe to, and a client pays for a photo
+/// only when it asks for one — the client scopes its photo subscription to the
+/// listings actually on screen.
+#[spacetimedb::table(accessor = listing_photo, public)]
+pub struct ListingPhoto {
+    #[primary_key]
+    pub listing_id: u64,
+    /// A `data:image/...;base64,` URI. The client downscales before upload;
+    /// `check_photo` is what actually holds the line.
+    pub data_uri: String,
+    /// Who attached it. Redundant with `listing.posted_by` today, but the check
+    /// that guards a write should not depend on another table still being there.
+    pub posted_by: Identity,
+}
+
 // ---------------------------------------------------------------------------
 // Validation — user-facing copy. These strings are read aloud during the demo.
 // ---------------------------------------------------------------------------
@@ -381,6 +426,28 @@ pub fn expire_listings(ctx: &ReducerContext, _tick: ExpiryTick) {
         ctx.db.listing().id().delete(id);
         log::info!("expired listing={id} — pickup window passed with no claim");
     }
+
+    // Photos live in their own table, so deleting a listing does not take its
+    // photo with it. Sweeping here rather than in each deleting path means no
+    // future path can leak one: anything whose listing is gone or delivered
+    // goes, wherever it was deleted from.
+    let orphans: Vec<u64> = ctx
+        .db
+        .listing_photo()
+        .iter()
+        .filter(|p| {
+            ctx.db
+                .listing()
+                .id()
+                .find(p.listing_id)
+                .is_none_or(|l| l.completed)
+        })
+        .map(|p| p.listing_id)
+        .collect();
+
+    for id in orphans {
+        ctx.db.listing_photo().listing_id().delete(id);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -451,6 +518,9 @@ pub fn reset_board(ctx: &ReducerContext) {
     let n = all.len();
     for id in all {
         ctx.db.listing().id().delete(id);
+        // Immediately, not on the next expiry tick — a rehearsal should not
+        // start with the previous run's photos still on the board.
+        ctx.db.listing_photo().listing_id().delete(id);
     }
     seed(ctx);
     log::info!("reset_board: cleared {n} listings, re-seeded {}", SEED.len());
@@ -730,5 +800,445 @@ Reply with JSON only: {\"answer\": string, \"listing_id\": number or null}";
             listing_id: None,
             failed: false,
         },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Donor profiles, photos, and the two procedures that call out to the network.
+// ---------------------------------------------------------------------------
+
+const MAX_BIO: usize = 240;
+const MAX_ADDRESS: usize = 120;
+
+/// Cap on the encoded photo string. A 720px JPEG at moderate quality lands
+/// around 50 KB, which is roughly 68 KB of base64. This leaves real headroom
+/// without letting one client push a megabyte into a table every other client
+/// reads.
+const MAX_PHOTO_CHARS: usize = 140_000;
+
+/// Nominatim's usage policy asks for a descriptive User-Agent that identifies
+/// the application. A browser will not let a page set that header; a procedure
+/// can. That is the reason `geocode` runs here and not in React.
+const USER_AGENT: &str = "Scraps/1.0 (HopHacks food-rescue demo; +https://github.com/ellachh/scraps-hophacks)";
+
+fn check_photo(data_uri: &str) -> Result<(), String> {
+    if !(data_uri.starts_with("data:image/jpeg;base64,")
+        || data_uri.starts_with("data:image/png;base64,")
+        || data_uri.starts_with("data:image/webp;base64,"))
+    {
+        return Err("That photo isn't in a format we can store.".to_string());
+    }
+    if data_uri.len() > MAX_PHOTO_CHARS {
+        return Err("That photo is too large — try taking it again.".to_string());
+    }
+    Ok(())
+}
+
+/// Percent-encode everything outside the unreserved set. Small enough to write
+/// out, and one fewer dependency in a crate that has to compile to wasm.
+fn urlencode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() * 3);
+    for b in s.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(*b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// Save the details a donor would otherwise retype on every listing.
+///
+/// Upserts against `ctx.sender()` and nothing else. The identity is never a
+/// parameter — a client can pass any value it likes, so accepting one here
+/// would let anyone rewrite anyone's shopfront.
+#[spacetimedb::reducer]
+pub fn save_donor_profile(
+    ctx: &ReducerContext,
+    name: String,
+    bio: String,
+    address: String,
+    lat: f64,
+    lng: f64,
+) -> Result<(), String> {
+    check_len("Restaurant name", &name, MAX_DONOR)?;
+    check_coords(lat, lng)?;
+
+    // Bio and address are optional. A donor who wants only a name and a pin
+    // should not be stopped; only the caps are enforced.
+    if bio.trim().chars().count() > MAX_BIO {
+        return Err(format!("Bio has to be {MAX_BIO} characters or fewer."));
+    }
+    if address.trim().chars().count() > MAX_ADDRESS {
+        return Err(format!("Address has to be {MAX_ADDRESS} characters or fewer."));
+    }
+
+    let row = DonorProfile {
+        identity: ctx.sender(),
+        name: name.trim().to_string(),
+        bio: bio.trim().to_string(),
+        address: address.trim().to_string(),
+        lat,
+        lng,
+    };
+
+    match ctx.db.donor_profile().identity().find(ctx.sender()) {
+        Some(_) => ctx.db.donor_profile().identity().update(row),
+        None => ctx.db.donor_profile().insert(row),
+    };
+    Ok(())
+}
+
+/// Post a listing and attach its photo in the same transaction.
+///
+/// `post_listing` cannot do this. A reducer returns `Result<(), String>` and
+/// cannot hand the new `id` back, so "post, then attach" would mean the client
+/// guessing which row it had just made. Inserting both here means the photo
+/// lands with the listing or not at all — there is no window in which the board
+/// shows a photoless row that is about to grow one.
+///
+/// An empty `photo` means no photo. `post_listing` is untouched and still works.
+#[spacetimedb::reducer]
+pub fn post_listing_with_photo(
+    ctx: &ReducerContext,
+    donor: String,
+    description: String,
+    pickup_by: Timestamp,
+    lat: f64,
+    lng: f64,
+    photo: String,
+) -> Result<(), String> {
+    check_len("Donor name", &donor, MAX_DONOR)?;
+    check_len("Description", &description, MAX_DESCRIPTION)?;
+    check_coords(lat, lng)?;
+    if !photo.is_empty() {
+        check_photo(&photo)?;
+    }
+
+    let listing = ctx.db.listing().try_insert(Listing {
+        id: 0, // auto_inc placeholder
+        donor: donor.trim().to_string(),
+        description: description.trim().to_string(),
+        pickup_by,
+        lat,
+        lng,
+        posted_by: ctx.sender(),
+        claimed_by: None,
+        completed: false,
+    })?;
+
+    if !photo.is_empty() {
+        ctx.db.listing_photo().insert(ListingPhoto {
+            listing_id: listing.id,
+            data_uri: photo,
+            posted_by: ctx.sender(),
+        });
+    }
+    Ok(())
+}
+
+/// Attach or replace the photo on a listing you posted.
+#[spacetimedb::reducer]
+pub fn attach_photo(ctx: &ReducerContext, listing_id: u64, data_uri: String) -> Result<(), String> {
+    check_photo(&data_uri)?;
+
+    let listing = ctx
+        .db
+        .listing()
+        .id()
+        .find(listing_id)
+        .ok_or("That listing is no longer available.")?;
+
+    // Access control is this line. Any connected client may call any reducer,
+    // so without it anyone could replace the photo on anyone's pickup.
+    if listing.posted_by != ctx.sender() {
+        return Err("You didn't post this pickup.".to_string());
+    }
+
+    let row = ListingPhoto {
+        listing_id,
+        data_uri,
+        posted_by: ctx.sender(),
+    };
+    match ctx.db.listing_photo().listing_id().find(listing_id) {
+        Some(_) => ctx.db.listing_photo().listing_id().update(row),
+        None => ctx.db.listing_photo().insert(row),
+    };
+    Ok(())
+}
+
+/// Take the photo back off a listing you posted.
+#[spacetimedb::reducer]
+pub fn remove_photo(ctx: &ReducerContext, listing_id: u64) -> Result<(), String> {
+    let photo = ctx
+        .db
+        .listing_photo()
+        .listing_id()
+        .find(listing_id)
+        .ok_or("There is no photo on that pickup.")?;
+
+    if photo.posted_by != ctx.sender() {
+        return Err("You didn't post this pickup.".to_string());
+    }
+
+    ctx.db.listing_photo().listing_id().delete(listing_id);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Procedures — the database making outbound calls.
+//
+// Both follow the same shape the spike established: read what is needed inside
+// a short transaction, let it close, and only then touch the network. Neither
+// ever panics; both return a struct carrying either a result or a sentence the
+// UI can show, because a procedure that fails mid-demo must degrade to a
+// message and not to a broken screen.
+// ---------------------------------------------------------------------------
+
+#[derive(spacetimedb::SpacetimeType)]
+pub struct GeoResult {
+    pub ok: bool,
+    pub lat: f64,
+    pub lng: f64,
+    pub label: String,
+    pub error: String,
+}
+
+impl GeoResult {
+    fn failed(message: impl Into<String>) -> Self {
+        GeoResult {
+            ok: false,
+            lat: 0.0,
+            lng: 0.0,
+            label: String::new(),
+            error: message.into(),
+        }
+    }
+}
+
+/// Turn a typed address into a point on the map, via OpenStreetMap's geocoder.
+///
+/// This runs in the database for a concrete reason rather than an architectural
+/// one: Nominatim's usage policy requires a descriptive `User-Agent`, and the
+/// browser fetch API silently refuses to set that header. A procedure can, so
+/// the request we actually make is the request their policy asks for.
+///
+/// It also keeps the client's standing rule intact — there is no `fetch`
+/// anywhere in `client/`.
+#[spacetimedb::procedure]
+pub fn geocode(ctx: &mut spacetimedb::ProcedureContext, address: String) -> GeoResult {
+    use spacetimedb::http::{Body, Request};
+
+    let query = address.trim();
+    if query.is_empty() {
+        return GeoResult::failed("Type an address first.");
+    }
+    if query.chars().count() > MAX_ADDRESS {
+        return GeoResult::failed("That address is too long to look up.");
+    }
+
+    let uri = format!(
+        "https://nominatim.openstreetmap.org/search?format=json&limit=1&q={}",
+        urlencode(query)
+    );
+
+    let request = match Request::builder()
+        .method("GET")
+        .uri(&uri)
+        .header("user-agent", USER_AGENT)
+        .header("accept", "application/json")
+        .body(Body::from_bytes(Vec::new()))
+    {
+        Ok(r) => r,
+        Err(e) => return GeoResult::failed(format!("Couldn't build that lookup: {e}")),
+    };
+
+    let body = match ctx.http.send(request) {
+        Ok(response) => {
+            let status = response.status();
+            if !status.is_success() {
+                return GeoResult::failed(format!(
+                    "The address lookup answered {}.",
+                    status.as_u16()
+                ));
+            }
+            response.into_body().into_string_lossy()
+        }
+        Err(e) => return GeoResult::failed(format!("Couldn't reach the address lookup: {e}")),
+    };
+
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
+        return GeoResult::failed("The address lookup sent something we couldn't read.");
+    };
+
+    let Some(first) = parsed.get(0) else {
+        return GeoResult::failed("No match for that address — drop the pin instead.");
+    };
+
+    // Nominatim returns coordinates as strings, not numbers.
+    let lat = first
+        .get("lat")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<f64>().ok());
+    let lng = first
+        .get("lon")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<f64>().ok());
+    let label = first
+        .get("display_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(query)
+        .to_string();
+
+    match (lat, lng) {
+        // Same validation the reducers apply. A geocoder is just another
+        // untrusted source of coordinates.
+        (Some(lat), Some(lng)) if check_coords(lat, lng).is_ok() => GeoResult {
+            ok: true,
+            lat,
+            lng,
+            label,
+            error: String::new(),
+        },
+        _ => GeoResult::failed("That lookup came back without a usable location."),
+    }
+}
+
+#[derive(spacetimedb::SpacetimeType)]
+pub struct DescriptionDraft {
+    pub ok: bool,
+    pub text: String,
+    pub error: String,
+}
+
+impl DescriptionDraft {
+    fn failed(message: impl Into<String>) -> Self {
+        DescriptionDraft {
+            ok: false,
+            text: String::new(),
+            error: message.into(),
+        }
+    }
+}
+
+const SUGGEST_SYSTEM: &str = "You write listings for a food-rescue board where restaurants post \
+surplus food and volunteer drivers claim it. Given the business and a short note, write one plain \
+description a driver can act on: what the food is, roughly how much, and any handling note that \
+matters. Under 180 characters. No emoji, no exclamation marks, no marketing language, and never \
+invent a detail the note does not support. Reply with the description and nothing else.";
+
+/// Draft a listing description from a few words, using Grok.
+///
+/// The API key is read from the private `secret` table, which has no `public`
+/// and is therefore skipped by codegen and unreachable over a subscription. No
+/// key is in the client bundle and none is in the repository.
+///
+/// This is a *suggestion*. The donor can take it, edit it, or ignore it and
+/// type their own — the reducer that actually posts the listing neither knows
+/// nor cares where the text came from. If this procedure fails, posting still
+/// works; that is the whole reason it is shaped as a suggestion.
+#[spacetimedb::procedure]
+pub fn suggest_description(
+    ctx: &mut spacetimedb::ProcedureContext,
+    donor: String,
+    note: String,
+) -> DescriptionDraft {
+    use spacetimedb::http::{Body, Request};
+
+    if note.trim().is_empty() {
+        return DescriptionDraft::failed("Jot down what the food is first, even roughly.");
+    }
+
+    // 1. Read the key and the model inside one short transaction.
+    //
+    // Same two secrets `ask_scraps` reads, deliberately. Two AI features
+    // disagreeing about which model to call is the kind of failure that only
+    // surfaces on whichever one gets demoed second.
+    let (key, model) = ctx.with_tx(|tx| {
+        let key = tx
+            .db
+            .secret()
+            .name()
+            .find("xai_api_key".to_string())
+            .map(|s| s.value);
+        let model = tx
+            .db
+            .secret()
+            .name()
+            .find("xai_model".to_string())
+            .map(|s| s.value)
+            .unwrap_or_else(|| DEFAULT_MODEL.to_string());
+        (key, model)
+    });
+    let Some(key) = key else {
+        return DescriptionDraft::failed("No model key is set on this database.");
+    };
+
+    // 2. Transaction closed. Network I/O never happens with one open.
+    let payload = serde_json::json!({
+        "model": model,
+        "temperature": 0.4,
+        "max_tokens": 120,
+        "messages": [
+            { "role": "system", "content": SUGGEST_SYSTEM },
+            {
+                "role": "user",
+                "content": format!("Business: {}\nNote: {}", donor.trim(), note.trim()),
+            },
+        ],
+    });
+
+    let request = match Request::builder()
+        .method("POST")
+        .uri("https://api.x.ai/v1/chat/completions")
+        .header("authorization", format!("Bearer {key}"))
+        .header("content-type", "application/json")
+        .body(Body::from_bytes(payload.to_string().into_bytes()))
+    {
+        Ok(r) => r,
+        Err(e) => return DescriptionDraft::failed(format!("Couldn't build that request: {e}")),
+    };
+
+    let body = match ctx.http.send(request) {
+        Ok(response) => {
+            let status = response.status();
+            let text = response.into_body().into_string_lossy();
+            if !status.is_success() {
+                // Deliberately not echoing the body: an upstream error message
+                // is not something to render into a donor's form.
+                log::warn!("suggest_description: xAI returned {} — {text}", status.as_u16());
+                return DescriptionDraft::failed(format!("The model answered {}.", status.as_u16()));
+            }
+            text
+        }
+        Err(e) => return DescriptionDraft::failed(format!("Couldn't reach the model: {e}")),
+    };
+
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
+        return DescriptionDraft::failed("The model sent something we couldn't read.");
+    };
+
+    let content = parsed
+        .get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .trim();
+
+    if content.is_empty() {
+        return DescriptionDraft::failed("The model didn't have a suggestion for that.");
+    }
+
+    // The same cap `post_listing` enforces. A suggestion the form cannot submit
+    // is worse than no suggestion.
+    let text: String = content.chars().take(MAX_DESCRIPTION).collect();
+    DescriptionDraft {
+        ok: true,
+        text,
+        error: String::new(),
     }
 }
