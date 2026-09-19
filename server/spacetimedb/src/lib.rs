@@ -32,13 +32,15 @@ pub struct Listing {
     pub completed: bool,
 }
 
-fn check_len(field: &str, value: &str, max: usize) -> Result<(), String> {
+// User-facing copy. These strings are read aloud during the demo and shown to
+// judges, so they are written for a person, not a developer.
+fn check_len(label: &str, value: &str, max: usize) -> Result<(), String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err(format!("{field} cannot be empty"));
+        return Err(format!("{label} can't be empty."));
     }
     if trimmed.chars().count() > max {
-        return Err(format!("{field} must be {max} characters or fewer"));
+        return Err(format!("{label} has to be {max} characters or fewer."));
     }
     Ok(())
 }
@@ -47,20 +49,17 @@ fn check_len(field: &str, value: &str, max: usize) -> Result<(), String> {
 // subscriber, not just the poster. Reject it at the door.
 fn check_coords(lat: f64, lng: f64) -> Result<(), String> {
     if !lat.is_finite() || !lng.is_finite() {
-        return Err("latitude and longitude must be finite numbers".to_string());
+        return Err("That location isn't valid — pick a point on the map.".to_string());
     }
-    if !(-90.0..=90.0).contains(&lat) {
-        return Err("latitude must be between -90 and 90".to_string());
-    }
-    if !(-180.0..=180.0).contains(&lng) {
-        return Err("longitude must be between -180 and 180".to_string());
+    if !(-90.0..=90.0).contains(&lat) || !(-180.0..=180.0).contains(&lng) {
+        return Err("That location is off the map.".to_string());
     }
     Ok(())
 }
 
 #[spacetimedb::reducer]
 pub fn set_name(ctx: &ReducerContext, name: String) -> Result<(), String> {
-    check_len("name", &name, MAX_NAME)?;
+    check_len("Your name", &name, MAX_NAME)?;
     let name = name.trim().to_string();
 
     match ctx.db.user().identity().find(ctx.sender()) {
@@ -86,8 +85,8 @@ pub fn post_listing(
     lat: f64,
     lng: f64,
 ) -> Result<(), String> {
-    check_len("donor", &donor, MAX_DONOR)?;
-    check_len("description", &description, MAX_DESCRIPTION)?;
+    check_len("Donor name", &donor, MAX_DONOR)?;
+    check_len("Description", &description, MAX_DESCRIPTION)?;
     check_coords(lat, lng)?;
 
     ctx.db.listing().try_insert(Listing {
@@ -124,13 +123,22 @@ pub fn claim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
         .listing()
         .id()
         .find(id)
-        .ok_or_else(|| format!("listing {id} no longer exists"))?;
+        .ok_or("That listing is no longer available.")?;
 
     if listing.completed {
-        return Err("that pickup is already complete".to_string());
+        return Err("That pickup has already been delivered.".to_string());
     }
-    if listing.claimed_by.is_some() {
-        return Err("someone else claimed this first".to_string());
+    // Name the winner. "Vanessa claimed this first" makes the contention
+    // concrete for a judge in a way "already claimed" does not.
+    if let Some(holder) = listing.claimed_by {
+        let who = ctx
+            .db
+            .user()
+            .identity()
+            .find(holder)
+            .map(|u| u.name)
+            .unwrap_or_else(|| "Someone else".to_string());
+        return Err(format!("{who} claimed this first."));
     }
 
     ctx.db.listing().id().update(Listing {
@@ -147,14 +155,14 @@ pub fn unclaim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
         .listing()
         .id()
         .find(id)
-        .ok_or_else(|| format!("listing {id} no longer exists"))?;
+        .ok_or("That listing is no longer available.")?;
 
     if listing.completed {
-        return Err("that pickup is already complete".to_string());
+        return Err("That pickup has already been delivered.".to_string());
     }
     // Only the volunteer holding the claim may release it.
     if listing.claimed_by != Some(ctx.sender()) {
-        return Err("you do not hold this claim".to_string());
+        return Err("You don't hold this claim.".to_string());
     }
 
     ctx.db.listing().id().update(Listing {
@@ -171,14 +179,14 @@ pub fn complete_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
         .listing()
         .id()
         .find(id)
-        .ok_or_else(|| format!("listing {id} no longer exists"))?;
+        .ok_or("That listing is no longer available.")?;
 
     if listing.completed {
-        return Err("that pickup is already complete".to_string());
+        return Err("That pickup has already been delivered.".to_string());
     }
     // Only the volunteer holding the claim may complete it.
     if listing.claimed_by != Some(ctx.sender()) {
-        return Err("you do not hold this claim".to_string());
+        return Err("You don't hold this claim.".to_string());
     }
 
     ctx.db.listing().id().update(Listing {

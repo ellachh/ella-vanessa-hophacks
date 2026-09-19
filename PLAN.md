@@ -321,15 +321,25 @@ neither session can verify it without the package installed.
 All five reducers return an error message instead of silently no-oping. The
 client receives these through the reducer event context.
 
-`claim_listing` errors:
+**These strings are demo copy.** They are shown to judges and read aloud, so
+they are written for a person, not a developer. Agreed wording:
 
-| Case | Message |
+| Situation | Message |
 |---|---|
-| Lost the race | `someone else claimed this first` |
-| Already delivered | `that pickup is already complete` |
-| Row gone | `listing <id> no longer exists` |
+| Lost the race | `Vanessa claimed this first.` (falls back to `Someone else claimed this first.` if that volunteer never set a name) |
+| Already delivered | `That pickup has already been delivered.` |
+| Listing gone | `That listing is no longer available.` |
+| Not your claim | `You don't hold this claim.` |
+| Bad coordinates | `That location isn't valid — pick a point on the map.` |
+| Empty / too long | `Donor name can't be empty.` · `Description has to be 280 characters or fewer.` |
 
-`unclaim_listing` / `complete_listing` add `you do not hold this claim`.
+`claim_listing` looks the winner's name up in the `user` table rather than
+saying "someone else". **Naming the winner is the point** — "Vanessa claimed
+this first" makes the contention concrete in a way a generic message does not,
+and it costs one table lookup.
+
+Change these in `server/spacetimedb/src/lib.rs` if the wording should differ, but
+agree on it **before** the demo, not during.
 
 **This is a demo upgrade, not just error handling.** Previously the loser of a
 contested claim just watched the row grey out, which is ambiguous — it looks
