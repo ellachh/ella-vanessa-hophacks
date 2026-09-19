@@ -12,12 +12,20 @@ const LINGER_MS = 6000
 type Entry = { key: number; who: string; listingId: bigint; won: boolean }
 
 /**
- * A live feed of every claim attempt on the board — won and lost.
+ * A live feed of successful claims across the board.
  *
- * Without this, only the loser learns they lost, through their own rejected
- * promise. The event table broadcasts attempts to everyone, so contention stops
- * being a moment we have to stage for the demo and becomes something the board
- * visibly does.
+ * It was designed to show attempts won AND lost, which would have made
+ * contention visible to everyone rather than only to the loser. It cannot:
+ * Ella verified against Maincloud that a reducer returning `Err` aborts its
+ * transaction, and `record_attempt`'s insert goes with it. Losing rows never
+ * persist, so only winners ever arrive here. See PLAN.md.
+ *
+ * Recovering the losses would mean returning `Ok` on every path and putting
+ * the outcome in the row, which costs the rejection message on the loser's
+ * screen — the clearest thing in the demo. Not worth the trade.
+ *
+ * The `--lost` styling stays. It is dormant, costs nothing, and works
+ * unchanged if that trade is ever made.
  *
  * Event-table rows are NEVER stored in the client cache — `count()` is 0 and
  * `iter()` yields nothing. The only way to see them is the `onInsert`
@@ -59,7 +67,7 @@ export default function ContentionFeed({ users }: { users: readonly User[] }) {
   if (entries.length === 0) return null
 
   return (
-    <div className="feed" role="log" aria-live="polite" aria-label="Claim activity">
+    <div className="feed" role="log" aria-live="polite" aria-label="Recent claims">
       {entries.map((e) => (
         <p key={e.key} className={`feed__row feed__row--${e.won ? 'won' : 'lost'}`}>
           <span className="feed__who">{e.who}</span>{' '}
