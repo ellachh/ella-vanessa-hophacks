@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Taps, One Pickup — Relay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+  :root {
+    --ground: #f7f6f3;
+    --surface: #ffffff;
+    --sunk: #eceae5;
+    --line: #dcd8d0;
+    --line-soft: #e8e4dd;
+    --ink: #1a1d21;
+    --ink-soft: #5c6470;
+    --ink-faint: #8a919c;
+    --amber: #b8730a;
+    --amber-fill: rgba(184, 115, 10, 0.12);
+    --blue: #1d4ed8;
+    --blue-fill: rgba(29, 78, 216, 0.10);
+    --red: #b42318;
+    --red-fill: rgba(180, 35, 24, 0.09);
+    --grey: #6b7280;
+
+    --f-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    --f-body: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+    --f-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101318;
+      --surface: #1a1f27;
+      --sunk: #15191f;
+      --line: #2e3542;
+      --line-soft: #242a33;
+      --ink: #e9edf3;
+      --ink-soft: #9aa5b5;
+      --ink-faint: #6b7688;
+      --amber: #f5a524;
+      --amber-fill: rgba(245, 165, 36, 0.14);
+      --blue: #6a9bf5;
+      --blue-fill: rgba(59, 130, 246, 0.15);
+      --red: #f87171;
+      --red-fill: rgba(248, 113, 113, 0.12);
+      --grey: #7d8694;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101318;
+    --surface: #1a1f27;
+    --sunk: #15191f;
+    --line: #2e3542;
+    --line-soft: #242a33;
+    --ink: #e9edf3;
+    --ink-soft: #9aa5b5;
+    --ink-faint: #6b7688;
+    --amber: #f5a524;
+    --amber-fill: rgba(245, 165, 36, 0.14);
+    --blue: #6a9bf5;
+    --blue-fill: rgba(59, 130, 246, 0.15);
+    --red: #f87171;
+    --red-fill: rgba(248, 113, 113, 0.12);
+    --grey: #7d8694;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 3rem 4rem;
+  }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.9rem;
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 3.1rem);
+    line-height: 1.04;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+
+  .standfirst {
+    font-size: clamp(1.02rem, 2.4vw, 1.18rem);
+    color: var(--ink-soft);
+    max-width: 44ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(1.35rem, 3.4vw, 1.75rem);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 0.5rem;
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 1.02rem;
+    letter-spacing: -0.005em;
+    margin: 0 0 0.35rem;
+  }
+
+  p { margin: 0 0 1rem; max-width: 66ch; }
+  p:last-child { margin-bottom: 0; }
+
+  section { margin-top: 3.4rem; }
+
+  .lede { color: var(--ink-soft); max-width: 60ch; margin-bottom: 1.6rem; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: 0.86em;
+    background: var(--sunk);
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 0.08em 0.34em;
+  }
+
+  /* ---- the two lanes ---- */
+
+  .lanes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.1rem;
+    margin-top: 1.8rem;
+  }
+
+  .lane {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lane__head {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--sunk);
+  }
+
+  .lane__kind {
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 0.15rem;
+  }
+
+  .lane__name { font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; }
+
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0.55rem 0 0.75rem;
+    flex: 1 1 auto;
+    counter-reset: step;
+  }
+
+  .step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.4rem 1fr;
+    align-items: start;
+    gap: 0.1rem;
+    padding: 0.5rem 1rem 0.5rem 0.5rem;
+  }
+
+  .step__t {
+    font-family: var(--f-mono);
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    padding-top: 0.22rem;
+    text-align: right;
+    padding-right: 0.55rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step__body { font-size: 0.93rem; line-height: 1.5; }
+  .step__who { font-weight: 600; }
+  .step__note { display: block; color: var(--ink-soft); font-size: 0.85rem; }
+
+  /* the vertical time rail */
+  .steps { position: relative; }
+  .steps::before {
+    content: "";
+    position: absolute;
+    left: 2.38rem;
+    top: 0.9rem;
+    bottom: 0.9rem;
+    width: 1px;
+    background: var(--line);
+  }
+
+  .step::before {
+    content: "";
+    position: absolute;
+    left: 2.13rem;
+    top: 0.72rem;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    border: 2px solid var(--surface);
+    box-sizing: content-box;
+  }
+
+  .step--read::before { background: var(--grey); }
+  .step--write::before { background: var(--amber); }
+  .step--reject::before { background: var(--blue); }
+  .step--bad::before { background: var(--red); }
+
+  .verdict {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid var(--line);
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .verdict--bad { background: var(--red-fill); color: var(--red); }
+  .verdict--good { background: var(--blue-fill); color: var(--blue); }
+
+  .verdict__mark {
+    font-family: var(--f-mono);
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  /* ---- the fix column ---- */
+
+  .fix {
+    margin-top: 1.5rem;
+    border-left: 3px solid var(--amber);
+    background: var(--amber-fill);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.15rem;
+  }
+
+  .fix h3 { margin-bottom: 0.3rem; }
+  .fix p { font-size: 0.95rem; color: var(--ink-soft); }
+  .fix p strong { color: var(--ink); }
+
+  /* ---- traffic ---- */
+
+  .traffic {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.1rem;
+    margin-top: 1.6rem;
+  }
+
+  .tcard {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 1rem 1.1rem 1.15rem;
+  }
+
+  .tcard__label {
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.7rem;
+  }
+
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; margin-bottom: 0.7rem; }
+  .bars span { flex: 1 1 auto; background: var(--red); opacity: 0.75; border-radius: 1px 1px 0 0; }
+
+  .flat {
+    height: 54px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.7rem;
+  }
+  .flat span {
+    display: block;
+    width: 100%;
+    height: 3px;
+    background: var(--blue);
+    border-radius: 2px;
+  }
+
+  .tcard__num {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.6rem;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .tcard__sub { font-size: 0.85rem; color: var(--ink-soft); }
+
+  /* ---- metrics ---- */
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.6rem;
+  }
+
+  .metric {
+    border-top: 2px solid var(--line);
+    padding-top: 0.85rem;
+  }
+  .metric__n {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(1.7rem, 4.5vw, 2.2rem);
+    letter-spacing: -0.025em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .metric__k {
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 0.45rem;
+  }
+  .metric p { font-size: 0.88rem; color: var(--ink-soft); margin: 0; }
+
+  /* ---- didn't write ---- */
+
+  .ledger {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 1.5rem;
+  }
+
+  .ledger__row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: baseline;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface);
+  }
+  .ledger__row:last-child { border-bottom: 0; }
+  .ledger__row--sum { background: var(--sunk); font-weight: 600; }
+
+  .ledger__what { font-size: 0.93rem; }
+  .ledger__cost {
+    font-family: var(--f-mono);
+    font-size: 0.82rem;
+    white-space: nowrap;
+    color: var(--ink-soft);
+  }
+  .ledger__cost--none { color: var(--blue); }
+
+  /* ---- proof ---- */
+
+  pre {
+    font-family: var(--f-mono);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    background: var(--sunk);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    margin: 1.2rem 0 0;
+  }
+  pre b { color: var(--amber); font-weight: 700; }
+  pre i { color: var(--ink-faint); font-style: normal; }
+
+  .foot {
+    margin-top: 3.4rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+
+  @media (max-width: 760px) {
+    .lanes, .traffic, .metrics { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <p class="eyebrow">Relay · HopHacks · SpacetimeDB 2.10.1</p>
+  <h1>Two taps, one pickup</h1>
+  <p class="standfirst">
+    Two volunteers in Baltimore tap <em>Claim</em> on the same tray of bagels in the
+    same instant. What happens next is the whole argument for building this on
+    SpacetimeDB instead of a REST API.
+  </p>
+
+  <section>
+    <h2>The same moment, two architectures</h2>
+    <p class="lede">
+      Time runs downward. Both volunteers act inside the same 40&nbsp;milliseconds.
+    </p>
+
+    <div class="lanes">
+
+      <div class="lane">
+        <div class="lane__head">
+          <span class="lane__kind">Express + Postgres</span>
+          <span class="lane__name">REST</span>
+        </div>
+        <ol class="steps">
+          <li class="step step--read">
+            <span class="step__t">+0ms</span>
+            <span class="step__body">
+              <span class="step__who">Ella</span> — <code>GET /listings/30</code>
+              <span class="step__note">Reads <code>claimed_by: null</code></span>
+            </span>
+          </li>
+          <li class="step step--read">
+            <span class="step__t">+12ms</span>
+            <span class="step__body">
+              <span class="step__who">Vanessa</span> — <code>GET /listings/30</code>
+              <span class="step__note">Also reads <code>claimed_by: null</code>. Ella has not written yet.</span>
+            </span>
+          </li>
+          <li class="step step--write">
+            <span class="step__t">+18ms</span>
+            <span class="step__body">
+              <span class="step__who">Ella</span> — <code>POST /claim</code>
+              <span class="step__note">Server checks its copy: still null. Writes Ella.</span>
+            </span>
+          </li>
+          <li class="step step--bad">
+            <span class="step__t">+24ms</span>
+            <span class="step__body">
+              <span class="step__who">Vanessa</span> — <code>POST /claim</code>
+              <span class="step__note">Server checked before Ella's write landed. Overwrites with Vanessa.</span>
+            </span>
+          </li>
+          <li class="step step--bad">
+            <span class="step__t">+2s</span>
+            <span class="step__body">
+              <span class="step__who">Both screens</span> still read “yours”
+              <span class="step__note">Neither client polls again until its interval elapses.</span>
+            </span>
+          </li>
+        </ol>
+        <p class="verdict verdict--bad">
+          <span class="verdict__mark">✕</span>
+          Two drivers dispatched. One tray of bagels.
+        </p>
+      </div>
+
+      <div class="lane">
+        <div class="lane__head">
+          <span class="lane__kind">Module inside the database</span>
+          <span class="lane__name">SpacetimeDB</span>
+        </div>
+        <ol class="steps">
+          <li class="step step--read">
+            <span class="step__t">+0ms</span>
+            <span class="step__body">
+              <span class="step__who">Ella</span> — calls <code>claim_listing(30)</code>
+              <span class="step__note">Queued as a transaction.</span>
+            </span>
+          </li>
+          <li class="step step--read">
+            <span class="step__t">+12ms</span>
+            <span class="step__body">
+              <span class="step__who">Vanessa</span> — calls <code>claim_listing(30)</code>
+              <span class="step__note">Queued behind it. Reducers do not interleave.</span>
+            </span>
+          </li>
+          <li class="step step--write">
+            <span class="step__t">+18ms</span>
+            <span class="step__body">
+              <span class="step__who">Transaction 1</span> runs to completion
+              <span class="step__note">Sees <code>None</code>, writes Ella, commits.</span>
+            </span>
+          </li>
+          <li class="step step--reject">
+            <span class="step__t">+19ms</span>
+            <span class="step__body">
+              <span class="step__who">Transaction 2</span> runs next
+              <span class="step__note">Sees <code>Some(Ella)</code> — cannot see the state T1 saw. Returns <code>Err</code>, writes nothing.</span>
+            </span>
+          </li>
+          <li class="step step--reject">
+            <span class="step__t">+21ms</span>
+            <span class="step__body">
+              <span class="step__who">Both screens</span> update, unprompted
+              <span class="step__note">Vanessa’s reads “Ella claimed this first.”</span>
+            </span>
+          </li>
+        </ol>
+        <p class="verdict verdict--good">
+          <span class="verdict__mark">✓</span>
+          One driver. The loser is told why.
+        </p>
+      </div>
+
+    </div>
+
+    <div class="fix">
+      <h3>The REST version is fixable — that's the point</h3>
+      <p>
+        <code>SELECT … FOR UPDATE</code>, an optimistic version column, or a
+        compare-and-swap retry loop all close that gap. Each is code you write,
+        test, and get right. <strong>We wrote none of it.</strong> Serialized
+        transactions are what a reducer already is, so the correct behaviour is
+        the default rather than the thing you remembered to add.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Traffic during a five-minute demo</h2>
+    <p class="lede">
+      Two laptops, one board. Anyone can check this in the browser's network panel.
+    </p>
+
+    <div class="traffic">
+      <div class="tcard">
+        <p class="tcard__label">REST · polling every 2s</p>
+        <div class="bars" role="img" aria-label="A repeating sawtooth of requests, one every two seconds, continuing whether or not anything changed">
+          <span style="height:38%"></span><span style="height:38%"></span><span style="height:38%"></span>
+          <span style="height:38%"></span><span style="height:38%"></span><span style="height:38%"></span>
+          <span style="height:38%"></span><span style="height:38%"></span><span style="height:38%"></span>
+          <span style="height:38%"></span><span style="height:38%"></span><span style="height:38%"></span>
+          <span style="height:38%"></span><span style="height:38%"></span><span style="height:38%"></span>
+          <span style="height:38%"></span><span style="height:38%"></span><span style="height:38%"></span>
+        </div>
+        <span class="tcard__num">300</span>
+        <span class="tcard__sub">requests, almost all returning nothing new</span>
+      </div>
+
+      <div class="tcard">
+        <p class="tcard__label">SpacetimeDB · one subscription</p>
+        <div class="flat" role="img" aria-label="A single continuous connection held open for the whole session">
+          <span></span>
+        </div>
+        <span class="tcard__num">1</span>
+        <span class="tcard__sub">connection; frames only when a row actually changes</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Three numbers we can defend</h2>
+    <p class="lede">
+      No synthetic benchmark. Each of these is either arithmetic or something a
+      judge can verify on the machine in front of them.
+    </p>
+
+    <div class="metrics">
+      <div class="metric">
+        <span class="metric__k">Staleness</span>
+        <span class="metric__n">2.5s → 0</span>
+        <p>
+          A 2-second poll leaves an average one-second window, and a 5-second poll
+          leaves 2.5, where two drivers both see “open”. Push closes it to network
+          latency. This gap <em>is</em> the double-dispatch bug.
+        </p>
+      </div>
+      <div class="metric">
+        <span class="metric__k">Data layer</span>
+        <span class="metric__n">2</span>
+        <p>
+          Two <code>useTable</code> calls are the client's entire data layer. No
+          fetch, no polling, no cache, no store — the repo contains zero
+          data-fetching code.
+        </p>
+      </div>
+      <div class="metric">
+        <span class="metric__k">Backend</span>
+        <span class="metric__n">~190</span>
+        <p>
+          Lines of Rust: two tables, five reducers, input validation. That is the
+          whole server. There is no API layer because the reducers are the API.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What we didn't have to build</h2>
+    <p class="lede">
+      The honest comparison isn't speed. It's the list of things that never
+      became our problem.
+    </p>
+
+    <div class="ledger">
+      <div class="ledger__row">
+        <span class="ledger__what">REST routes for listings, claims, releases, completions</span>
+        <span class="ledger__cost ledger__cost--none">not written</span>
+      </div>
+      <div class="ledger__row">
+        <span class="ledger__what">A websocket server, plus fan-out to connected clients</span>
+        <span class="ledger__cost ledger__cost--none">not written</span>
+      </div>
+      <div class="ledger__row">
+        <span class="ledger__what">Client-side cache and invalidation on every mutation</span>
+        <span class="ledger__cost ledger__cost--none">not written</span>
+      </div>
+      <div class="ledger__row">
+        <span class="ledger__what">Row locking or compare-and-swap for the contested claim</span>
+        <span class="ledger__cost ledger__cost--none">not written</span>
+      </div>
+      <div class="ledger__row">
+        <span class="ledger__what">An auth layer to stop a client claiming to be someone else</span>
+        <span class="ledger__cost ledger__cost--none">not written</span>
+      </div>
+      <div class="ledger__row ledger__row--sum">
+        <span class="ledger__what">What we did write</span>
+        <span class="ledger__cost">2 tables · 5 reducers · 2 subscriptions</span>
+      </div>
+    </div>
+
+    <p style="margin-top:1.2rem; color:var(--ink-soft); font-size:0.93rem;">
+      Identity is the clearest case. <code>claim_listing</code> takes one argument,
+      the listing id. There is no parameter for <em>who</em> — it comes from
+      <code>ctx.sender()</code>, established by the connection. A client cannot
+      forge it, because there is nowhere to put it.
+    </p>
+  </section>
+
+  <section>
+    <h2>The receipt</h2>
+    <p class="lede">
+      Two claims on listing 30, launched from one shell line so both are in flight
+      before either returns.
+    </p>
+    <pre><i>$ spacetime call -- food-pickup claim_listing 30 &amp; \
+  spacetime call -- food-pickup claim_listing 30 &amp; wait</i>
+[1] 60949
+[2] 60950
+
+[1]  - done       spacetime call -- food-pickup claim_listing 30
+<b>Error: Response text: Ella CLI claimed this first.</b>
+[2]  + exit 1     spacetime call -- food-pickup claim_listing 30
+
+<i>$ spacetime sql food-pickup "SELECT id, claimed_by FROM listing WHERE id = 30"</i>
+ id | claimed_by
+----+------------------------------------------------------------
+ 30 | (some = (__identity__ = 0xc200af83…))</pre>
+    <p style="margin-top:1rem; color:var(--ink-soft); font-size:0.93rem;">
+      Both PIDs are assigned before either process exits. One exits 0, the other
+      exits 1, and the row afterwards has exactly one holder.
+    </p>
+  </section>
+
+  <p class="foot">
+    Relay — a live food-rescue board for Baltimore. Built on SpacetimeDB 2.10.1:
+    two tables, five reducers, published to Maincloud as <code>food-pickup</code>.
+  </p>
+
+</div>
+</body>
+</html>
