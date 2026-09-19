@@ -58,6 +58,65 @@ update land in a client. Do not proceed on one person's machine alone.
 
 ---
 
+## Where to run `spacetime` commands
+
+Some commands care about your working directory and some do not. The split is
+whether the command *reads files* or *talks to the running server*.
+
+Use **two terminals**: one running the server, one in the repo for everything else.
+
+### Terminal 1 — the server (run from anywhere)
+
+```bash
+spacetime start     # leave this running all weekend
+```
+
+This is a daemon. It does not care where you launch it from, and its data lives
+in SpacetimeDB's own directory, **not** in the repo. Nothing it creates should
+ever be committed.
+
+### Terminal 2 — in the repo (these are path-sensitive)
+
+```bash
+cd ~/path/to/ella-vanessa-hophacks
+
+spacetime init --lang rust server      # from REPO ROOT, creates server/
+cd server
+spacetime publish <module-name>        # from server/, builds the module here
+spacetime generate --lang typescript \
+  --out-dir ../client/src/module_bindings   # from server/, writes into client/
+```
+
+`init`, `publish` and `generate` all resolve paths relative to where you run
+them. Run them in the wrong directory and you get a module scaffolded in your
+home folder or bindings written somewhere Vanessa will never find.
+
+### Anywhere — these talk to the server by module name
+
+```bash
+spacetime call <module-name> claim_listing 1
+spacetime sql  <module-name> "SELECT * FROM listing"
+spacetime logs <module-name>
+```
+
+These address the module by name over the network, so your working directory is
+irrelevant. Run them from wherever is convenient.
+
+> Verify exact flags with `spacetime <subcommand> --help`. The CLI is ground
+> truth; this table is a memory aid.
+
+### What must never be committed
+
+Building the module creates `server/target/` — hundreds of megabytes of Rust
+build artifacts. `.gitignore` already excludes it, along with `node_modules/`.
+Do not remove those lines. If `git status` ever shows thousands of files, stop
+and check `.gitignore` before committing anything.
+
+The one generated thing you **do** commit is `client/src/module_bindings/`, so
+Vanessa gets typed bindings without building the Rust module.
+
+---
+
 ## Phase 1 — Schema freeze and bindings (E+V together, ~hours 0–2)
 
 This is the most important 2 hours of the event. Do it side by side, not split.
