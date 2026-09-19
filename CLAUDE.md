@@ -1,4 +1,6 @@
-# Relay — HopHacks Project Brief
+# Scraps — HopHacks Project Brief
+
+> Renamed from *Relay* late on. If you find a stray "Relay", it is a leftover.
 
 > Working title. Change it if you think of something better.
 >

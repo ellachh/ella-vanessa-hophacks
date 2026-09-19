@@ -184,7 +184,7 @@ table was cut.** `#[client_visibility_filter]` is behind the crate's `unstable`
 feature and carries `// TODO: RLS filters are currently unimplemented, and are
 not enforced.` It compiles, publishes, and does nothing. Shipping it would have
 meant claiming row-level security in the pitch while every client still received
-every contact row. **Do not describe Relay as having row-level security.** If a
+every contact row. **Do not describe Scraps as having row-level security.** If a
 judge asks what we would add next, this is a good honest answer.
 
 **2. An `Option` column cannot be an index-filter argument.** `claimed_by` is

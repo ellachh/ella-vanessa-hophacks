@@ -31,7 +31,7 @@ Run this every time, even if "nothing changed since last time."
 ## The beats
 
 **1. What it is — 15 seconds.**
-> "Relay is a live food-rescue board for Baltimore. Restaurants post surplus
+> "Scraps is a live food-rescue board for Baltimore. Restaurants post surplus
 > food, volunteers claim pickups. The interesting part isn't the app, it's what
 > happens when two volunteers want the same one."
 

@@ -36,7 +36,7 @@ database does when two people tap at the same instant.
 
 ## What it does
 
-Relay is a live food-rescue board for Baltimore. Restaurants and grocers post
+Scraps is a live food-rescue board for Baltimore. Restaurants and grocers post
 surplus food; volunteer drivers see it on a map and claim pickups. Every other
 volunteer's screen updates instantly — no refresh, no polling.
 

@@ -337,7 +337,7 @@ does quietly.
 
 ### Tier 0 — the honest problem these are solving
 
-A fair criticism of Relay: a chat app has more moving parts than ours. That is
+A fair criticism of Scraps: a chat app has more moving parts than ours. That is
 true about *surface area* and false about *depth* — chat has zero contention,
 every message is an independent append, which is exactly why it is the tutorial.
 Ours exercises the one guarantee that is hard to get right.
@@ -665,7 +665,7 @@ before pushing, even though that file is Ella's.
 
 TASK 3 — visual work, blocks on nobody. In priority order: the hand-drawn race
 diagram (highest value of anything here — it goes at the top of the Devpost),
-custom map pins as SVG, a Relay wordmark, then an empty-state illustration.
+custom map pins as SVG, a Scraps wordmark, then an empty-state illustration.
 Pins go through divIcon's html string, which is NOT escaped — only ever our own
 static markup there, never a donor name or description.
 
@@ -706,7 +706,7 @@ loaf for an open pickup, something visibly different once claimed. Drop them in
 as SVG via the existing `divIcon` in `MapView.tsx`. Keep open-vs-claimed
 obviously distinct at a glance; watching a pin change is still the demo.
 
-**3. A Relay wordmark.** Cheap, and makes the header read as a product rather
+**3. A Scraps wordmark.** Cheap, and makes the header read as a product rather
 than a project.
 
 **4. Empty-state illustration.** Nice, low value. Last.

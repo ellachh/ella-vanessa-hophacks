@@ -14,7 +14,7 @@ paste it in, republish.
 
 ### Why this is a tool and not a feature
 
-Relay's write path is SpacetimeDB reducers, and **reducers must be
+Scraps's write path is SpacetimeDB reducers, and **reducers must be
 deterministic** — no network, no filesystem, no wall clock. That is not a
 limitation we are working around. It is the same all-or-nothing transaction
 property that makes two simultaneous claims resolve to exactly one winner: a
@@ -27,7 +27,7 @@ consequences, all of them good:
   world-readable; a key in either would be extractable by anyone.
 - **No runtime dependency.** The demo does not get slower, or fail, because a
   third-party API is having a bad afternoon.
-- **The build stays verified.** Every claim Relay makes has been run against
+- **The build stays verified.** Every claim Scraps makes has been run against
   Maincloud. This cannot change any of them.
 
 If a judge asks how we used xAI: we used Grok to write the seed data, and we

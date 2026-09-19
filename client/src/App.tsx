@@ -68,7 +68,7 @@ function Board() {
   return (
     <div className="app">
       <header className="app__header">
-        <h1 className="app__title">Relay</h1>
+        <h1 className="app__title">Scraps</h1>
         <p className="app__tagline">Live food rescue board — Baltimore</p>
         <span className="app__count">
           {board.length} open · {mine.length} yours
