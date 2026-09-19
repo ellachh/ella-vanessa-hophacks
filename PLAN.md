@@ -70,9 +70,9 @@ This is the most important 2 hours of the event. Do it side by side, not split.
 - [ ] **E** `spacetime publish` the stub module — confirm it publishes
 - [ ] **E** `spacetime generate --lang typescript --out-dir client/src/module_bindings`
 - [ ] **E** Commit the generated bindings
-- [ ] **V** In parallel: scaffold `client/` — Vite + React + TypeScript
-- [ ] **V** Install deps: SpacetimeDB TS SDK, `leaflet`, `react-leaflet`
-- [ ] **V** Import Leaflet's CSS and render a bare map centered on Baltimore.
+- [x] **V** In parallel: scaffold `client/` — Vite + React + TypeScript
+- [x] **V** Install deps: SpacetimeDB TS SDK, `leaflet`, `react-leaflet`
+- [x] **V** Import Leaflet's CSS and render a bare map centered on Baltimore.
       *If the map is a grey box, the CSS import is missing.*
 
 **Phase 1 exit criteria:** `client/src/module_bindings` exists and is committed;
@@ -109,7 +109,9 @@ hour 25.
 
 ### V — frontend
 
-- [ ] Connect to the module, subscribe to `SELECT * FROM listing` and `SELECT * FROM user`
+- [ ] Connect to the module via `SpacetimeDBProvider`; read rows with
+      `useTable(tables.listing)` and `useTable(tables.user)` (2.x has no SQL
+      strings client-side — see `CLAUDE.md` under Client architecture)
 - [ ] Render listings as map markers, driven **only** by the subscription
 - [ ] Name-entry screen on first load (calls `set_name`)
 - [ ] Listing detail panel with a Claim button
