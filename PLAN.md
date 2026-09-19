@@ -151,6 +151,73 @@ Just make sure the demo path is the Maincloud one, and rehearse on it.
 
 ---
 
+## Phase 5 schema pass (E) — done, needs deploying
+
+Two tables became four. `post_listing`'s signature is **unchanged**, so V's
+client is not broken by this — the only client-visible additions are new things
+to subscribe to.
+
+| Table | Kind | Why |
+|---|---|---|
+| `user` | public | display names |
+| `listing` | public, `completed` indexed | the board |
+| `claim_attempt` | public **event** | every claim attempt, won or lost |
+| `expiry_tick` | scheduled, private | drives `expire_listings` |
+
+Plus a `my_pickups` view, and a max-3-open-claims invariant enforced inside
+`claim_listing`.
+
+### Deploying
+
+```bash
+cd server
+spacetime publish food-pickup --yes
+spacetime call food-pickup arm_expiry     # init does not re-run on a live DB
+spacetime call food-pickup seed_board     # only if the board is empty
+spacetime generate --lang typescript --out-dir ../client/src/module_bindings
+```
+
+### Three things that turned out not to work as planned
+
+**1. Row-level security is not implemented in 2.10.1. The `pickup_contact`
+table was cut.** `#[client_visibility_filter]` is behind the crate's `unstable`
+feature and carries `// TODO: RLS filters are currently unimplemented, and are
+not enforced.` It compiles, publishes, and does nothing. Shipping it would have
+meant claiming row-level security in the pitch while every client still received
+every contact row. **Do not describe Relay as having row-level security.** If a
+judge asks what we would add next, this is a good honest answer.
+
+**2. An `Option` column cannot be an index-filter argument.** `claimed_by` is
+the natural index for "my pickups", but `.claimed_by().filter(Some(who))` does
+not compile. Combined with the fact that a `#[view]` may only start from an
+index and cannot call `iter()`, `my_pickups` starts from the `completed` index
+and narrows to `ctx.sender()` in Rust. That is why the index is on `completed`
+and not where you would expect.
+
+**3. `.update()` lives on the primary key, not on any index.**
+`.claimed_by().update(...)` does not exist; it is `.id().update(...)`.
+
+### Open question — verify before relying on it
+
+`claim_listing` writes a `claim_attempt` row on **both** paths, won and lost.
+But a reducer returning `Err` aborts its transaction, and that insert is inside
+the transaction — **the losing row may roll back**, leaving a ticker that only
+ever shows winners.
+
+Nobody has checked yet. Thirty seconds to settle it:
+
+```bash
+spacetime subscribe food-pickup "SELECT * FROM claim_attempt" --num-updates 5 &
+spacetime call -- food-pickup claim_listing 30 & spacetime call -- food-pickup claim_listing 30 & wait
+```
+
+Two rows printed → losses survive, the ticker works as designed. One row → they
+roll back, and the fix is a **design change, not a patch**: the loser's outcome
+would have to travel in an `Ok` result instead of an `Err`, which costs us the
+rejection toast. That trade is V's call as much as E's, since the toast is hers.
+
+---
+
 ## Phase 5 item 1 — scheduled expiry (E, done, needs deploying)
 
 The database calls our code on a timer with no client involved. A second

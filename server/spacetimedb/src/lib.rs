@@ -1,4 +1,6 @@
-use spacetimedb::{Identity, ReducerContext, ScheduleAt, Table, Timestamp};
+use spacetimedb::{
+    Identity, ReducerContext, ScheduleAt, Table, TimeDuration, Timestamp, ViewContext,
+};
 use std::time::Duration;
 
 // Input caps. These exist to keep one bad row from breaking every client:
@@ -8,8 +10,16 @@ const MAX_NAME: usize = 40;
 const MAX_DONOR: usize = 80;
 const MAX_DESCRIPTION: usize = 280;
 
+/// A volunteer may hold this many open claims at once. Hoarding pickups you
+/// cannot drive to is the failure mode a real dispatch board has to prevent.
+const MAX_OPEN_CLAIMS: usize = 3;
+
 /// How often the database checks for listings whose pickup window has passed.
 const EXPIRY_INTERVAL: Duration = Duration::from_secs(30);
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
 
 // A volunteer. Exists only so the UI can show a name instead of a hex identity.
 #[spacetimedb::table(accessor = user, public)]
@@ -33,11 +43,54 @@ pub struct Listing {
     pub lng: f64,
     pub posted_by: Identity,
     pub claimed_by: Option<Identity>,
+    // Indexed because a *view* may only start from an index — it cannot call
+    // `iter()`. `claimed_by` would be the natural key, but an `Option` column
+    // cannot be an index-filter argument in 2.10.1, so `my_pickups` starts from
+    // the open listings and narrows to the sender in Rust.
+    #[index(btree)]
     pub completed: bool,
 }
 
-// User-facing copy. These strings are read aloud during the demo and shown to
-// judges, so they are written for a person, not a developer.
+// NOTE — no private-contact table, deliberately.
+//
+// The plan called for address/phone in a separate table guarded by a
+// `#[client_visibility_filter]`. That is not possible on 2.10.1. The attribute
+// exists only behind the crate's `unstable` feature, and the crate marks it:
+//
+//     // TODO: RLS filters are currently unimplemented, and are not enforced.
+//
+// It would compile, it would publish, and it would enforce nothing — every
+// client would still receive every contact row. Shipping it would mean claiming
+// row-level security in the pitch while having none, which is worse than not
+// having the feature. Revisit when RLS lands.
+
+/// Every claim attempt, won or lost.
+///
+/// An `event` table: rows are broadcast to subscribers and never stored in the
+/// client cache — `count()` is 0 and `iter()` yields nothing, only `onInsert`
+/// fires. Exactly right for something transient like an attempt.
+#[spacetimedb::table(accessor = claim_attempt, public, event)]
+pub struct ClaimAttempt {
+    pub listing_id: u64,
+    pub who: Identity,
+    pub won: bool,
+    pub at: Timestamp,
+}
+
+/// A scheduled table: inserting a row schedules `expire_listings`. Not `public`
+/// — no client needs to see the timer, only its effects.
+#[spacetimedb::table(accessor = expiry_tick, scheduled(expire_listings))]
+pub struct ExpiryTick {
+    #[primary_key]
+    #[auto_inc]
+    pub scheduled_id: u64,
+    pub scheduled_at: ScheduleAt,
+}
+
+// ---------------------------------------------------------------------------
+// Validation — user-facing copy. These strings are read aloud during the demo.
+// ---------------------------------------------------------------------------
+
 fn check_len(label: &str, value: &str, max: usize) -> Result<(), String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -60,6 +113,19 @@ fn check_coords(lat: f64, lng: f64) -> Result<(), String> {
     }
     Ok(())
 }
+
+fn display_name(ctx: &ReducerContext, who: Identity) -> String {
+    ctx.db
+        .user()
+        .identity()
+        .find(who)
+        .map(|u| u.name)
+        .unwrap_or_else(|| "Someone else".to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Reducers
+// ---------------------------------------------------------------------------
 
 #[spacetimedb::reducer]
 pub fn set_name(ctx: &ReducerContext, name: String) -> Result<(), String> {
@@ -115,10 +181,6 @@ pub fn post_listing(
 // first one's write and returns Err. No locking, no compare-and-swap, no retry
 // loop on our side.
 //
-// The Err matters for the demo: it is what lets the losing client say "someone
-// beat you to it" instead of silently watching the row change. Returning Err
-// also aborts the transaction, so the loser writes nothing.
-//
 // Do NOT "simplify" this into an unconditional write.
 #[spacetimedb::reducer]
 pub fn claim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
@@ -130,20 +192,25 @@ pub fn claim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
         .ok_or("That listing is no longer available.")?;
 
     if listing.completed {
+        record_attempt(ctx, id, false);
         return Err("That pickup has already been delivered.".to_string());
     }
-    // Name the winner. "Vanessa claimed this first" makes the contention
-    // concrete for a judge in a way "already claimed" does not.
+
     if let Some(holder) = listing.claimed_by {
-        let who = ctx
-            .db
-            .user()
-            .identity()
-            .find(holder)
-            .map(|u| u.name)
-            .unwrap_or_else(|| "Someone else".to_string());
+        let who = display_name(ctx, holder);
+        record_attempt(ctx, id, false);
         log::info!("claim REJECTED  listing={id}  already held by {who}");
         return Err(format!("{who} claimed this first."));
+    }
+
+    // An invariant the database enforces, not the UI. Counted inside this
+    // transaction, so it cannot be raced any more than the claim itself can.
+    let held = open_claims(ctx, ctx.sender());
+    if held >= MAX_OPEN_CLAIMS {
+        record_attempt(ctx, id, false);
+        return Err(format!(
+            "You're already holding {held} pickups. Deliver or release one first."
+        ));
     }
 
     log::info!("claim ACCEPTED  listing={id}  holder={:?}", ctx.sender());
@@ -151,6 +218,7 @@ pub fn claim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
         claimed_by: Some(ctx.sender()),
         ..listing
     });
+    record_attempt(ctx, id, true);
     Ok(())
 }
 
@@ -203,23 +271,64 @@ pub fn complete_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
-// Expiry — the database calling our code on a timer, with no client involved.
+// Helpers — all of these run inside a caller's transaction.
 // ---------------------------------------------------------------------------
 
-/// A scheduled table: inserting a row schedules `expire_listings`. Not `public`
-/// — no client needs to see the timer, only its effects.
-#[spacetimedb::table(accessor = expiry_tick, scheduled(expire_listings))]
-pub struct ExpiryTick {
-    #[primary_key]
-    #[auto_inc]
-    pub scheduled_id: u64,
-    pub scheduled_at: ScheduleAt,
+/// How many open (claimed, not yet delivered) pickups this volunteer holds.
+/// An index lookup, not a scan, because `claimed_by` is indexed.
+fn open_claims(ctx: &ReducerContext, who: Identity) -> usize {
+    ctx.db
+        .listing()
+        .completed()
+        .filter(false)
+        .filter(|l| l.claimed_by == Some(who))
+        .count()
 }
+
+/// Broadcast a claim attempt to every subscriber.
+///
+/// NOTE, and verify this before relying on it: a reducer that returns `Err`
+/// aborts its transaction, and this insert is part of that transaction. The
+/// losing write may therefore roll back, leaving the ticker showing only
+/// winners. See PLAN.md for the 30-second check. If it does roll back, the fix
+/// is a design change, not a patch: the loser's outcome would have to travel in
+/// an `Ok` result rather than an `Err`, which costs us the rejection toast.
+fn record_attempt(ctx: &ReducerContext, listing_id: u64, won: bool) {
+    ctx.db.claim_attempt().insert(ClaimAttempt {
+        listing_id,
+        who: ctx.sender(),
+        won,
+        at: ctx.timestamp,
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Views — computed by the database, not by React.
+// ---------------------------------------------------------------------------
+
+/// Per-user view: each client gets only its own claimed pickups. The filtering
+/// happens server-side, so "My Pickups" stops being a React `.filter()` over
+/// rows the client should arguably never have received.
+#[spacetimedb::view(accessor = my_pickups, public)]
+fn my_pickups(ctx: &ViewContext) -> Vec<Listing> {
+    let me = ctx.sender();
+    ctx.db
+        .listing()
+        .completed()
+        .filter(false)
+        .filter(|l| l.claimed_by == Some(me))
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Expiry — the database calling our code on a timer, with no client involved.
+// ---------------------------------------------------------------------------
 
 /// Runs once, when the module is first published to an empty database.
 #[spacetimedb::reducer(init)]
 pub fn init(ctx: &ReducerContext) {
     arm(ctx);
+    seed(ctx);
 }
 
 /// `init` only fires on a *fresh* database, so republishing over an existing
@@ -268,4 +377,55 @@ pub fn expire_listings(ctx: &ReducerContext, _tick: ExpiryTick) {
         ctx.db.listing().id().delete(id);
         log::info!("expired listing={id} — pickup window passed with no claim");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Seed — replaces server/seed.sh.
+// ---------------------------------------------------------------------------
+
+/// donor, description, hours until pickup, lat, lng.
+/// Donors are invented on purpose — never real business names in a public demo.
+const SEED: &[(&str, &str, i64, f64, f64)] = &[
+    ("Pratt Street Bakehouse", "About 20 day-old bagels and 6 loaves of sourdough", 3, 39.2857, -76.6100),
+    ("Fells Point Grocer", "Produce boxes — greens, carrots, apples. Roughly 40 lbs", 5, 39.2820, -76.5930),
+    ("Hampden Coffee Collective", "Pastries and 2 gallons of oat milk", 2, 39.3299, -76.6294),
+    ("Federal Hill Deli", "14 wrapped sandwiches, made this morning", 2, 39.2757, -76.6105),
+    ("Mount Vernon Catering Co", "Event surplus — trays of rice, roasted vegetables, salad", 4, 39.2976, -76.6157),
+    ("Canton Fish Market", "Fresh fish on ice, must move today. About 25 lbs", 2, 39.2817, -76.5747),
+    ("Charles Village Co-op", "Bulk dry goods — rice, lentils, pasta. 6 crates", 8, 39.3260, -76.6157),
+    ("Station North Pizzeria", "18 par-baked pies", 3, 39.3110, -76.6155),
+    ("Remington Farm Stand", "End-of-market vegetables, mixed. 5 crates", 4, 39.3200, -76.6280),
+    ("Locust Point Cafe", "Soup in sealed containers, about 6 quarts", 3, 39.2686, -76.5880),
+    ("Highlandtown Panaderia", "Sweet bread and rolls, roughly 60 pieces", 5, 39.2887, -76.5658),
+    ("Pigtown Corner Market", "Dairy nearing date — milk, yogurt, cheese", 6, 39.2838, -76.6355),
+    ("Bolton Hill Kitchen", "Prepared meals in trays, serves about 30", 4, 39.3050, -76.6220),
+    ("Patterson Park Concessions", "Hot dogs, buns, condiments from a cancelled event", 2, 39.2894, -76.5790),
+    ("Roland Park Bistro", "Family meal surplus — chicken, potatoes, greens", 5, 39.3520, -76.6320),
+];
+
+fn seed(ctx: &ReducerContext) {
+    if ctx.db.listing().count() > 0 {
+        return;
+    }
+    for (donor, description, hours, lat, lng) in SEED {
+        ctx.db.listing().insert(Listing {
+            id: 0,
+            donor: (*donor).to_string(),
+            description: (*description).to_string(),
+            pickup_by: ctx.timestamp + TimeDuration::from_micros(hours * 3_600_000_000),
+            lat: *lat,
+            lng: *lng,
+            posted_by: ctx.sender(),
+            claimed_by: None,
+            completed: false,
+        });
+    }
+    log::info!("seeded {} listings", SEED.len());
+}
+
+/// Seed an already-published database without wiping it, the same way
+/// `arm_expiry` arms an already-published one. No-ops if any listing exists.
+#[spacetimedb::reducer]
+pub fn seed_board(ctx: &ReducerContext) {
+    seed(ctx);
 }
