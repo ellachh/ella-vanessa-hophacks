@@ -58,6 +58,69 @@ update land in a client. Do not proceed on one person's machine alone.
 
 ---
 
+## Setup gotchas we already hit (read before running `spacetime init`)
+
+### Install Rust BEFORE `spacetime init`
+
+If cargo is missing when you scaffold, the template warns and skips cargo setup.
+Order: install rustup → `. "$HOME/.cargo/env"` → `rustup target add
+wasm32-unknown-unknown` → then `spacetime init`.
+
+After installing rustup, cargo is not on the PATH of shells that are already
+open. Either run `. "$HOME/.cargo/env"` in each one, or open a new tab.
+
+### The init wizard wants values, not shell commands
+
+`spacetime init` prompts interactively even when you pass a path argument.
+Answer with plain values:
+
+| Prompt | Answer |
+|---|---|
+| Project path | `server` |
+| Database name | `food-pickup` |
+| Server language | `rust` |
+
+Typing `cd server` at the path prompt creates a directory literally named
+`cd server`, with a space in it. If that happens: `rm -rf "cd server"` (quotes
+required) and re-run.
+
+### The WASM target is required
+
+SpacetimeDB modules compile to WebAssembly:
+
+```bash
+rustup target add wasm32-unknown-unknown
+rustup target list --installed | grep wasm    # verify
+```
+
+### First `cargo check` is slow
+
+It downloads and compiles every dependency. Minutes, not seconds. It is not hung.
+
+---
+
+## Where we deploy: Maincloud, not local
+
+**The module lives on SpacetimeDB Maincloud. Database name: `food-pickup`.**
+
+Reason: the entire demo is two laptops hitting the same module instance at the
+same moment. Against a local `spacetime start`, Vanessa's laptop has to reach
+Ella's machine over hackathon wifi — LAN IPs, firewalls, and client isolation
+that is often enabled on conference networks. That is a terrible thing to debug
+at hour 30.
+
+Maincloud removes all of it: both clients connect to a hosted module, no network
+configuration at all.
+
+**Do this in Phase 1, not later:** publish to Maincloud and confirm Vanessa's
+laptop can connect. Proving the two-device path works is cheap on hour 2 and
+expensive on hour 30.
+
+Local `spacetime start` is still fine for fast iteration while writing reducers.
+Just make sure the demo path is the Maincloud one, and rehearse on it.
+
+---
+
 ## Where to run `spacetime` commands
 
 Some commands care about your working directory and some do not. The split is
