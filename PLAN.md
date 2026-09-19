@@ -254,54 +254,61 @@ try/catch. Per-viewer convenience only — never shared, never read back by us.
 
 ---
 
-### 2. AI recommender — PLANNED, NOT BUILT
+### 2. AI recommender — SHIPPED and verified against Maincloud
 
-**What a volunteer should be able to ask**, in their own words:
+**`ask_scraps` is a `#[procedure]`: the database itself calls the model.** Not a
+React component calling an API next to the database — the database, holding a
+transaction open just long enough to read the board, closing it, then making an
+outbound HTTPS request.
 
-> "What are you in the mood for?" → *"something sweet"* → the model picks from
-> the pickups actually on the board and says why.
->
-> "Where's the nearest bagel pickup?" → it knows both the listings *and* where
-> the volunteer's pin is.
+Verified live:
 
-**The distinctive version: run it as a SpacetimeDB `#[procedure]`.**
+```
+$ spacetime call -- food-pickup ask_scraps '"something sweet"' '39.2904' '-76.6122'
+["Hampden Coffee Collective has pastries.", 12291, false]
 
-Procedures exist precisely for side effects — outbound HTTP lives on
-`ctx.http` — and unlike RLS they are **not** behind the crate's `unstable`
-feature. So the database itself can call the model. Almost nobody at a hackathon
-will do that; a React component calling an API is the most-seen feature there is.
+$ spacetime call -- food-pickup ask_scraps '"what is closest to me right now"' ...
+["The closest is Ekiben, right where you are.", 16386, false]
 
-Shape:
-
-```rust
-#[procedure]
-pub fn ask_scraps(ctx: &mut ProcedureContext, question: String,
-                  lat: f64, lng: f64) -> Suggestion
+$ spacetime call -- food-pickup ask_scraps '"anything that expires soon"' ...
+["Ekiben has only 48 min left, closest by far.", 16386, false]
 ```
 
-1. Read the open listings inside a short `ctx.with_tx(...)`
-2. **Close the transaction, then** call Grok — the guidance is explicit that
-   network I/O happens before opening a transaction, not inside one
-3. Return the model's answer plus the `listing_id` it picked, so the client can
-   select that pin on the map
+Different questions pick different pickups — it is reasoning over the board, not
+keyword matching.
 
-#### Blocking unknown: where the API key lives
+**Why this is the interesting half.** Reducers must be deterministic: no network,
+no clock, no filesystem. That is not a limitation to work around, it is the same
+all-or-nothing property that makes two simultaneous claims resolve to exactly one
+winner. A reducer that could call an API could not offer that guarantee.
+Procedures exist for precisely the work reducers must refuse — so the honest
+framing is *"we could not put it in the write path, and here is the mechanism the
+database gives you instead."*
 
-`listing`, `user` and `claim_attempt` are all `public`, which means genuinely
-world-readable — a key in any of them is extractable by anyone who connects.
-A key in the client bundle is worse. **Resolve this before writing the feature:**
-find whether SpacetimeDB 2.10.1 offers a module-level setting or secret store
-that is not a public table. If it does not, the runtime version is off, and the
-answer is V's build-time `tools/generate-listings.mjs` approach, which already
-gives us the xAI story with no key shipped anywhere.
+**Grounding.** The model receives every open unclaimed pickup with its distance
+from the volunteer's pin and minutes remaining. A returned `listing_id` is
+discarded unless it appears in the context we supplied, so it cannot point at a
+listing it invented.
 
-#### Other risks, and the mitigations
+**Injection.** `serde_json` builds the request body. `donor` and `description`
+are free-form input from anonymous clients; hand-rolling that JSON string would
+let a description full of quotes and braces restructure the request.
 
-| Risk | Mitigation |
-|---|---|
-| xAI slow or down mid-demo | Client-side timeout, graceful "couldn't reach the model" copy. The feature is collapsed by default so a failure never breaks the board. |
-| Procedures are newer ground (`TODO(procedure-async)` in the crate) | Spike it in isolation first. Nothing touches the published module until a hello-world procedure returns a value to the client. |
-| A judge asks whether the AI is load-bearing | It is not, and say so. The contested claim is the argument; this is a convenience on top. |
+**Secrets.** Key and model name live in the private `secret` table — no `public`,
+so codegen skips it and no client can read it. Nothing ships in the bundle.
+
+**The model id is configurable without a republish:**
+
+```bash
+spacetime call food-pickup set_secret '"xai_model"' '"grok-3"'
+```
+
+#### Two fixes after the first live run
+
+- The model wrote `id=12291` into the prose. Ids are for the app, not the
+  reader; the prompt now forbids it and says to name the donor instead.
+- A listing posted at the default pin rendered as `0.0 mi away`, which reads
+  like a bug. Anything under a tenth of a mile is now "right where you are".
 
 #### Stop rule
 

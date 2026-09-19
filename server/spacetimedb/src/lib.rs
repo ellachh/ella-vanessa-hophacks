@@ -632,9 +632,14 @@ pub fn ask_scraps(
     let board = nearby
         .iter()
         .map(|n| {
+            let distance = if n.miles < 0.1 {
+                "right where you are".to_string()
+            } else {
+                format!("{:.1} mi away", n.miles)
+            };
             format!(
-                "id={} | {} | {} | {:.1} mi away | {} min left",
-                n.id, n.donor, n.description, n.miles, n.minutes_left
+                "id={} | {} | {} | {} | {} min left",
+                n.id, n.donor, n.description, distance, n.minutes_left
             )
         })
         .collect::<Vec<_>>()
@@ -644,7 +649,9 @@ pub fn ask_scraps(
 You are given every pickup currently open, with its distance from the volunteer and how long is left. \
 Answer their question in at most two short sentences, like a person would. \
 Only ever mention pickups from the list — never invent one. \
-If one pickup clearly answers them, recommend it and give its id. If none fits, say so plainly. \
+If one pickup clearly answers them, put its id in listing_id. If none fits, say so plainly. \
+NEVER write an id, or the word id, in the answer text — name the donor instead. \
+The answer is read aloud by a person; ids are for the app, not the reader. \
 Reply with JSON only: {\"answer\": string, \"listing_id\": number or null}";
 
     let user = format!("Open pickups:\n{board}\n\nQuestion: {question}");
