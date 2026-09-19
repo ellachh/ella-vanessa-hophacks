@@ -387,7 +387,19 @@ spacetime call food-pickup post_listing \
   '39.2857' '-76.6100'
 ```
 
-`server/seed.sh` handles this via its `ts_arg` helper. Run it from `server/`.
+### Negative numbers need `--`
+
+Baltimore longitudes are negative. Without a `--` separator the CLI parses
+`-76.6100` as short flags and fails with ``unexpected argument '-7' found``:
+
+```bash
+spacetime call -- food-pickup post_listing '"Donor"' '"desc"' \
+  '{"__timestamp_micros_since_unix_epoch__": 1790000000000000}' \
+  '39.2857' '-76.6100'
+```
+
+`server/seed.sh` handles both this and the Timestamp wrapping. Run it from
+`server/`.
 
 ---
 

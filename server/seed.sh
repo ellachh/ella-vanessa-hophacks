@@ -52,7 +52,10 @@ for row in "${listings[@]}"; do
   IFS='|' read -r donor description hours lat lng <<< "$row"
   pickup_by=$(( now_us + hours * hour_us ))
 
-  spacetime call "$DB" post_listing \
+  # `--` is REQUIRED: Baltimore longitudes are negative, and without it the CLI
+  # parses `-76.6100` as a bundle of short flags and dies with
+  # "unexpected argument '-7' found".
+  spacetime call -- "$DB" post_listing \
     "\"$donor\"" \
     "\"$description\"" \
     "$(ts_arg "$pickup_by")" \
@@ -65,3 +68,6 @@ done
 echo
 echo "Done. Verify:"
 echo "  spacetime sql $DB \"SELECT * FROM listing\""
+echo
+echo "To clear and reseed:"
+echo "  spacetime sql $DB \"DELETE FROM listing\"   # then ./seed.sh again"
