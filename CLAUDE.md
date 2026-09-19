@@ -178,6 +178,15 @@ Plus a per-user view, `#[spacetimedb::view(accessor = my_pickups, public)]`,
 returning the listings `ctx.sender()` currently holds — server-computed rather
 than filtered in React.
 
+**The radius filter is a subscription, not a list filter.** `client/src/radius.ts`
+builds the query with `.gte()`/`.lte()` on `lat` and `lng`, so narrowing the
+radius narrows what the server sends. It is a bounding *box* because the query
+builder compares columns to literals and has no trigonometry; `withinRadius`
+trims the box corners to a true circle over the handful of rows that survive.
+The count reads "7 pickups" rather than "7 of 15" on purpose — the rows outside
+the radius were never sent, so the total is not knowable without subscribing to
+everything, which is the thing being avoided.
+
 Deliberate choices:
 
 - **No status enum.** `claimed_by.is_none()` means open; `completed` closes it.

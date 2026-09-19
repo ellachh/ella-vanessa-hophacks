@@ -54,6 +54,15 @@ Point at the loser's toast — *"Vanessa claimed this first."*
 **4. Deliver it — 10 seconds.**
 Winner marks it delivered. It clears from both boards.
 
+**4b. How far are you willing to go — 20 seconds.** Optional; use it if the
+judge seems interested in the database rather than the product.
+
+Open DevTools → Network → WS first. Then drop the radius from Any to 1 mile.
+> "That isn't filtering a list. The radius is part of the subscription query —
+> the database stopped producing those rows, so they were never sent. The count
+> says '3 pickups', not '3 of 15', because we genuinely don't know what 15 is
+> from here."
+
 **5. The part nobody touches — 20 seconds.**
 Have a listing posted with a ~90-second window before you start.
 > "Watch — nobody touch anything."

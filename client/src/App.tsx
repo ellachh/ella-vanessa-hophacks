@@ -10,7 +10,8 @@ import { isPlottable } from './listing'
 import Toast from './Toast'
 import { sameIdentity } from './identity'
 import { tables } from './module_bindings'
-import { openListings } from './queries'
+import RadiusFilter from './RadiusFilter'
+import { listingsWithin, withinRadius, type Radius } from './radius'
 import './AppActions.css'
 
 /**
@@ -36,7 +37,11 @@ function Board() {
   // rather than being sent and discarded. `board` still filters `completed`
   // because a row can complete while we hold it, and the local filter is what
   // makes it leave the map in that instant.
-  const [listings] = useTable(openListings)
+  const [radius, setRadius] = useState<Radius>(null)
+
+  // The radius is part of the QUERY, not a filter over the result. Narrowing it
+  // re-scopes the subscription and the server stops sending those rows.
+  const [listings] = useTable(listingsWithin(radius))
   const [users] = useTable(tables.user)
 
   const [selectedId, setSelectedId] = useState<bigint | null>(null)
@@ -46,9 +51,11 @@ function Board() {
   const dismiss = useCallback(() => setToast(null), [])
 
   // A completed pickup clears from every board — that is the last demo beat.
+  // The server sends a bounding box; this trims it to a true circle. Two lines
+  // of arithmetic over a handful of rows, not a scan over the whole table.
   const board = useMemo(
-    () => listings.filter((l) => !l.completed && isPlottable(l)),
-    [listings],
+    () => listings.filter((l) => !l.completed && isPlottable(l) && withinRadius(l, radius)),
+    [listings, radius],
   )
   const selected = useMemo(
     () => board.find((l) => l.id === selectedId) ?? null,
@@ -73,6 +80,7 @@ function Board() {
         <span className="app__count">
           {board.length} open · {mine.length} yours
         </span>
+        <RadiusFilter value={radius} onChange={setRadius} shown={board.length} />
         <div className="app__actions">
           <button
             className={`btn${showMine ? ' btn--on' : ''}`}

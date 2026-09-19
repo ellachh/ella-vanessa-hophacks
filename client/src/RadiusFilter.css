@@ -1,0 +1,43 @@
+/* Ella's styles. Tokens come from index.css, which is Vanessa's. */
+
+.radius {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.radius__label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.radius__chips { display: flex; gap: 0.25rem; }
+
+.radius__chip {
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.radius__chip:hover { border-color: var(--text); color: var(--text); }
+
+.radius__chip--on {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.radius__count {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
