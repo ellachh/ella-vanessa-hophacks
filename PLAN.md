@@ -520,9 +520,39 @@ Backend is done. Do not go looking for more backend work.
 
 - [ ] **E** Post-listing form (donor, description, pickup-by, location picker)
 - [ ] **E** "My pickups" view — claimed-by-me listings, with unclaim and complete
-- [ ] **V** Map polish: clustering if needed, popups, pickup-window display
-- [ ] **V** Empty states, loading state, connection-lost state
+- [x] **V** Map polish: popups (JSX children — escaped; never `bindPopup`) and a
+      relative pickup window with urgency colour. Clustering not needed at 15 pins.
+- [x] **V** Empty, loading and connection-lost states — all three in
+      `ConnectionGate.tsx`, extracted from `App.tsx` so E owns that file now
 - [ ] **E+V** Run the seed script and look at a full board for the first time
+
+### V's Phase 3 verification (done)
+
+`npm test` — 24 vitest cases over the pure logic. Run it before any push that
+touches `listing.ts` or `pickupWindow.ts`.
+
+**XSS proof.** Popups are the first place free-form listing text reaches the
+DOM, and anyone can call `post_listing`. Rendered a listing whose donor and
+description carried injection payloads in a real browser:
+
+```
+donor:       <img src=x onerror="window.__XSS_DONOR=1">
+description: <script>window.__XSS_DESC=1</script><b>bold?</b>
+
+xssDonorFired: false    injectedImg:    false
+xssDescFired:  false    injectedScript: false
+                        injectedBold:   false
+both rendered as literal text
+```
+
+`<Popup>` with JSX children is what makes that true. `bindPopup` takes a raw
+HTML string and would have executed both. **Do not switch to it.**
+
+One HTML-string path remains — `divIcon`'s `html` option for the pins. Audited:
+only a union type and a boolean reach it, never a listing field. There is a
+comment on it saying not to interpolate text there.
+
+---
 
 ---
 
