@@ -781,3 +781,84 @@ collapsed, because a hidden feature is one a judge never sees.
 Three suggestion chips ("something sweet", "what's closest", "expiring soon")
 because typing on stage is slow; the free-text input stays for a judge who wants
 to ask their own question, which is the better moment anyway.
+
+---
+
+# PHASE 8 — handoff to E, written while the publish is happening
+
+## The one thing that matters
+
+**Publish and generate from `claude/elegant-archimedes-vqqdy1`, not from
+`main`.** The merge lives only on that branch. `main` does not contain
+`donor_profile`, `listing_photo`, `geocode` or `suggest_description`, so a
+publish from `main` changes nothing for V's client — it will still fail to
+typecheck with the same ten errors, and it will look like the publish didn't
+work.
+
+```bash
+git fetch origin
+git checkout claude/elegant-archimedes-vqqdy1
+git pull
+
+cd server/spacetimedb
+spacetime publish food-pickup --yes
+spacetime generate --lang typescript --out-dir ../../client/src/module_bindings
+
+cd ../../client && npx tsc -b && npm test && npm run build
+```
+
+`tsc` must reach **0 errors**. It is 10 right now and every one is a generated
+symbol that does not exist yet. If any survive the generate, stop — pushing
+past them means a white screen in the browser, because Vite's dev server does
+not typecheck and will happily run code calling a table that is not there.
+
+Then commit the regenerated `module_bindings/` and merge to `main`.
+
+## Two things in E's files changed
+
+1. **`Suggestion` was renamed on V's side, not E's.** Both of us had written a
+   struct by that name — E's `{ answer, listing_id, failed }` for the
+   assistant, V's `{ ok, text, error }` for the description drafter. They sit
+   hundreds of lines apart so git auto-merged them into a file defining the
+   name twice. V's is `DescriptionDraft` now. **`ask_scraps` and its
+   `Suggestion` are untouched.**
+2. **`suggest_description` now reads `xai_model` and `DEFAULT_MODEL`**, the
+   same two settings `ask_scraps` uses, instead of hardcoding a model name.
+   One key and one model setting serve both features.
+
+`Cargo.toml` had the only real conflict and it was harmless — both of us added
+`serde_json`.
+
+## If the publish asks for `--delete-data`
+
+It should not: everything added is a new *table*, and new tables migrate
+cleanly. It is new *columns* on existing tables that are unpayable, which is
+the trap that cost the `secret` owner column.
+
+But if it comes to that, `--delete-data` **wipes the `secret` table too**, so
+both AI features will fail with "No model key is set on this database" — which
+reads like a broken feature rather than a missing setting. Recovery:
+
+```bash
+spacetime call food-pickup set_secret '"xai_api_key"' '"xai-..."'
+spacetime call food-pickup reset_board
+```
+
+## First test after it lands
+
+**Post one listing with one photo, before posting several.** `MAX_PHOTO_CHARS`
+is 140_000 and it was chosen to be comfortably small, not measured against a
+documented row limit — the sandbox had no way to check. If the insert is
+rejected, lower it in `lib.rs` *and* `photo.ts` together and drop `MAX_EDGE`
+to 480. The client cap must never exceed the module's.
+
+## State of play
+
+| | |
+|---|---|
+| `main` | Green. 5 tables, 11 reducers, 1 procedure. Demo from here if anything goes wrong. |
+| `demo-v1` | Untouched fallback. Do not delete or force-push. |
+| `claude/elegant-archimedes-vqqdy1` | Merged. Rust builds for wasm32. 43 tests pass. 10 tsc errors, all pending the generate. |
+| Devpost | **Still nothing submitted.** Draft in `docs/DEVPOST.md` is current and paste-ready. |
+
+Devpost is the only item on this page that cannot be recovered from.
