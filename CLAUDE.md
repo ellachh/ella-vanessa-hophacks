@@ -80,6 +80,7 @@ involved).
 |---|---|---|
 | Backend | SpacetimeDB module in **Rust** | Required by the track |
 | Client bindings | `spacetime generate --lang typescript` | Typed, free, no hand-written API layer |
+| Client SDK | npm **`spacetimedb`** (not `@clockworklabs/spacetimedb-sdk`) | See Known Traps #2 — the package was renamed |
 | UI | React + TypeScript | What we know |
 | Map | **Leaflet + OpenStreetMap tiles** | No API key, no signup, no billing page |
 
@@ -135,8 +136,23 @@ The conditional in `claim_listing` is the project's technical centerpiece. Do no
 
 ## Client architecture
 
-Subscribe to `SELECT * FROM listing` and `SELECT * FROM user`, then render
-directly from the subscription.
+The TypeScript SDK ships first-party React bindings. Wrap the app in
+`SpacetimeDBProvider`, then read tables through `useTable`:
+
+```tsx
+const [listings, ready] = useTable(tables.listing)
+const claim = useReducer(reducers.claimListing)
+```
+
+`useTable` **is** the subscription — it returns live rows and re-renders on every
+change. There are no SQL strings in the 2.x client API: `tables.listing` is a
+query builder, and filtering happens server-side via
+`tables.listing.where(r => r.completed.eq(false))`. Earlier drafts of this file
+said to subscribe to `SELECT * FROM listing`; that was the 1.x API.
+
+Connection state (`isActive`, `identity`, `connectionError`) comes from
+`useSpacetimeDB()`. `SpacetimeDBProvider` takes the connection *builder*, not a
+built connection — do not call `.build()` yourself.
 
 No fetch calls. No polling. No Redux/Zustand/React Query. Rows change, the
 subscription fires, React re-renders. If you find yourself writing data-fetching
@@ -158,9 +174,25 @@ All genuinely interesting client work happens in TypeScript.
    official quickstart. Do not trust blog posts, Stack Overflow, older tutorials,
    or an AI assistant's memory — stale examples are the single most likely way to
    lose four hours.
-2. **Verify current module language support** at the docs when the event opens.
-3. **Leaflet needs its CSS imported** or the map renders as a broken grey box.
-4. Seed 10–15 realistic listings early. A demo with two rows on the map looks
+2. **The TypeScript SDK package was renamed.** It is now plain **`spacetimedb`**
+   (2.10.1 as of Phase 1), not `@clockworklabs/spacetimedb-sdk`. The old name
+   still resolves on npm, but its last release (2.0.0) is a stub whose only
+   dependency is `spacetimedb@next` — a dist-tag that does not exist — so
+   installing the old name fails outright with `ETARGET`. Every tutorial you
+   will find still uses the old name.
+3. **E's CLI version and V's SDK version must match.** `spacetime generate`
+   emits bindings that import from whichever package name and API shape that CLI
+   targets. If E's CLI is 1.x, the generated bindings will not line up with
+   `spacetimedb@2.10.1` and the client will not compile. Check this at the
+   handoff, before debugging anything else.
+4. **Module language support:** the `spacetimedb` package ships a
+   `spacetimedb/server` export, described as "API and ABI bindings for the
+   SpacetimeDB TypeScript module library" — which suggests modules can now be
+   written in TypeScript, not only Rust. Unverified: we have no `spacetime` CLI
+   in hand to publish one. Flagged for E to check; we are still on Rust, and
+   150 lines of Rust is not the risk here.
+5. **Leaflet needs its CSS imported** or the map renders as a broken grey box.
+6. Seed 10–15 realistic listings early. A demo with two rows on the map looks
    like a prototype; fifteen looks like a product.
 
 ## Pre-hackathon setup (do this before the clock starts)
