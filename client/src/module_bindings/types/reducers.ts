@@ -13,6 +13,7 @@ import PostListingReducer from "../post_listing_reducer";
 import ResetBoardReducer from "../reset_board_reducer";
 import SeedBoardReducer from "../seed_board_reducer";
 import SetNameReducer from "../set_name_reducer";
+import SetSecretReducer from "../set_secret_reducer";
 import UnclaimListingReducer from "../unclaim_listing_reducer";
 
 export type ArmExpiryParams = __Infer<typeof ArmExpiryReducer>;
@@ -22,5 +23,6 @@ export type PostListingParams = __Infer<typeof PostListingReducer>;
 export type ResetBoardParams = __Infer<typeof ResetBoardReducer>;
 export type SeedBoardParams = __Infer<typeof SeedBoardReducer>;
 export type SetNameParams = __Infer<typeof SetNameReducer>;
+export type SetSecretParams = __Infer<typeof SetSecretReducer>;
 export type UnclaimListingParams = __Infer<typeof UnclaimListingReducer>;
 

@@ -37,6 +37,19 @@ export const Listing = __t.object("Listing", {
 });
 export type Listing = __Infer<typeof Listing>;
 
+export const Secret = __t.object("Secret", {
+  name: __t.string(),
+  value: __t.string(),
+});
+export type Secret = __Infer<typeof Secret>;
+
+export const Suggestion = __t.object("Suggestion", {
+  answer: __t.string(),
+  listingId: __t.option(__t.u64()),
+  failed: __t.bool(),
+});
+export type Suggestion = __Infer<typeof Suggestion>;
+
 export const User = __t.object("User", {
   identity: __t.identity(),
   name: __t.string(),
