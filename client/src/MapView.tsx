@@ -2,6 +2,7 @@ import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import type { Identity } from 'spacetimedb'
 
 import './leaflet-default-icon'
+import ContentionFeed from './ContentionFeed'
 import { sameIdentity } from './identity'
 import { listingState } from './listing'
 import { pinIcon } from './pins'
@@ -70,6 +71,10 @@ export default function MapView({
           )
         })}
       </MapContainer>
+
+      {/* Sits over the map: contention is something the board does, not a
+          side panel. */}
+      <ContentionFeed users={users} />
 
       {listings.length === 0 && (
         <div className="empty" role="status">

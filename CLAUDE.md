@@ -197,6 +197,16 @@ dependencies. The real surface is the data model, and it rests on three things:
 2. **`ctx.sender` is the only trustworthy identity.** Never accept an `Identity`
    as a reducer argument and act on it — a client can pass any value it likes.
    The template's guidance states this first and in bold.
+**Row-level security is NOT available on 2.10.1 — do not claim it.**
+`#[client_visibility_filter]` exists and compiles, but it sits behind the
+crate's unstable feature and the crate itself carries
+`// TODO: RLS filters are currently unimplemented, and are not enforced`. It
+publishes and enforces nothing. We planned a `pickup_contact` table behind such
+a filter and cut it on finding this. Saying "we used row-level security" to a
+Clockwork judge would be wrong about their own product, in front of the people
+who wrote it — so the honest line is point 3 below: everything public is
+world-readable, and here is what we would do about it in production.
+
 3. **`public` means world-readable.** Both tables are `public`, so every client
    can read every row — including `user`, which maps Identity to a real name.
    Writes still require reducers, so this is read-only exposure. Correct for a
@@ -215,10 +225,8 @@ just anonymous. Our entire authorization model rests on it.
 
 **A login demonstrates nothing distinctive.** SpacetimeDB does support OIDC
 (SpacetimeAuth, Auth0, Clerk, Google, GitHub), so wiring it up would technically
-be "using a feature" — but every backend has that feature. The client visibility
-filter is the same territory done in a way that actually shows off the product:
-row-level security enforced by the database rather than by the client choosing
-not to render something.
+be "using a feature" — but every backend has that feature. Our authorization is
+already enforced where it counts: inside the reducers, against `ctx.sender`.
 
 **It would make the demo worse.** The pitch is ten seconds — two laptops, both
 tap, one wins. "Now we both sign up" is friction in front of the thing being
