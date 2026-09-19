@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import ConnectionGate from './ConnectionGate'
+import ContentionFeed from './ContentionFeed'
 import ListingPanel from './ListingPanel'
 import MapView from './MapView'
 import MyPickups from './MyPickups'
@@ -104,6 +105,7 @@ function Board() {
       </main>
 
       {posting && <PostForm onClose={() => setPosting(false)} onError={setToast} />}
+      <ContentionFeed users={users} />
       <Toast message={toast} onDismiss={dismiss} />
     </div>
   )
