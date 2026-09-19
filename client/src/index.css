@@ -64,12 +64,17 @@ html, body, #root { height: 100%; margin: 0; }
   line-height: 1;
 }
 .app__tagline { margin: 0; font-size: 0.85rem; color: var(--muted); }
+/* Sat mid-header with `margin-left: auto` pushing it off the tagline and the
+   actions pushing it further, so it read as floating in dead space. Anchored
+   beside the tagline instead; the actions take the auto margin. */
 .app__count {
-  margin-left: auto;
   font-size: 0.8rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--line);
 }
+.app__actions { margin-left: auto; display: flex; gap: 0.5rem; }
 
 .app__body { flex: 1 1 auto; min-height: 0; display: flex; }
 .app__map { flex: 1 1 auto; min-height: 0; }
@@ -150,10 +155,15 @@ html, body, #root { height: 100%; margin: 0; }
 .empty__sub { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
 
 /* ---------- side panel ---------- */
+/* Column layout so the actions and the stress-test link sit at the bottom
+   rather than trailing a large void under a short listing. */
 .panel {
   flex: 0 0 330px; padding: 1.4rem; overflow-y: auto;
   background: var(--panel); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
 }
+.panel__actions { margin-top: auto; padding-top: 1.4rem; }
+.stress, .stress__reveal { flex: none; }
 .panel--empty { display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .panel__donor {
   margin: 0.7rem 0 0.4rem;
@@ -165,7 +175,7 @@ html, body, #root { height: 100%; margin: 0; }
 }
 .panel__desc { margin: 0 0 0.9rem; line-height: 1.55; font-size: 0.92rem; }
 .panel__meta { color: var(--muted); font-size: 0.82rem; margin: 0 0 0.35rem; }
-.panel__actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.4rem; }
+.panel__actions { display: flex; flex-direction: column; gap: 0.5rem; }
 
 /* Thin-bordered pills, the way the reference sets its metadata. */
 .badge {
@@ -326,13 +336,32 @@ html, body, #root { height: 100%; margin: 0; }
 .gate__input:focus-visible { outline-offset: 0; }
 
 /* ---------- compatibility ----------
-   PostForm.css, MyPickups.css and AppActions.css are Ella's and carry a few
-   colours hardcoded for the old dark theme. Overriding here rather than
-   editing her files; fold these in properly when she next touches them. */
-.postform__backdrop, .postform-backdrop, [class*='backdrop'] {
-  background: rgba(60, 46, 24, 0.34) !important;
+   PostForm.css and AppActions.css are Ella's and carry colours hardcoded for
+   the old dark theme: a blue that now clashes with the warm palette, a
+   near-black scrim, and a slate hover border. Overriding here rather than
+   editing her files; fold these into the tokens when she next touches them.
+
+   Every one of these was found by rendering the post form and looking at it,
+   not by reading the CSS. The blue chip and the blue focus ring both survived
+   the re-theme because nothing in my files referenced them. */
+.post__backdrop, .post__scrim, [class*='backdrop'], [class*='scrim'] {
+  background: rgba(60, 46, 24, 0.36) !important;
 }
-.btn--on { background: var(--ink) !important; border-color: var(--ink) !important; color: #faf8f3 !important; }
+.post__input:focus { outline-color: var(--ink) !important; }
+.chip:hover { border-color: var(--muted) !important; }
+.chip--on {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+  color: #faf8f3 !important;
+}
+.app__actions .btn--on,
+.btn--on {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+  color: #faf8f3 !important;
+}
+/* The location pin inside the post form's mini-map. */
+.pin-new { border-color: var(--surface) !important; background: var(--open) !important; }
 
 /* ---------- narrow widths ----------
    The panel is a fixed column. Below roughly a small laptop that leaves the
