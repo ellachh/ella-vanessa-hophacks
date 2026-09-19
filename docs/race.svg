@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 440" role="img"
+     aria-label="Two volunteers tap Claim on the same listing at the same instant. SpacetimeDB runs the two reducer calls as serialized transactions, so one goes first, reads claimed_by as empty and commits, while the second reads claimed_by as already set and aborts. One volunteer gets the pickup and sees her pin turn green; on the other's screen the same pin greys out, and she is told Vanessa claimed this first. No locking code is involved.">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#17140f"/>
+    </marker>
+    <marker id="aw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2f6b4b"/>
+    </marker>
+    <marker id="al" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#b3401f"/>
+    </marker>
+  </defs>
+
+  <rect width="980" height="440" fill="#efebe2"/>
+
+  <!-- ── clients ─────────────────────────────────────────────── -->
+  <g font-family="Georgia, 'Times New Roman', serif" fill="#17140f">
+    <rect x="24" y="74" width="170" height="62" rx="10" fill="#fbf9f4" stroke="#ddd5c6" stroke-width="1.5"/>
+    <text x="109" y="101" font-size="18" text-anchor="middle">Vanessa</text>
+    <text x="109" y="122" font-size="12.5" fill="#6f675c" text-anchor="middle"
+          font-family="system-ui, sans-serif">taps Claim on #30</text>
+
+    <rect x="24" y="304" width="170" height="62" rx="10" fill="#fbf9f4" stroke="#ddd5c6" stroke-width="1.5"/>
+    <text x="109" y="331" font-size="18" text-anchor="middle">Ella</text>
+    <text x="109" y="352" font-size="12.5" fill="#6f675c" text-anchor="middle"
+          font-family="system-ui, sans-serif">taps Claim on #30</text>
+  </g>
+
+  <!-- ── converging arrows: the same instant ──────────────────── -->
+  <g fill="none" stroke="#17140f" stroke-width="1.8">
+    <path d="M194 105 H250 Q270 105 270 125 V200" marker-end="url(#a)"/>
+    <path d="M194 335 H250 Q270 335 270 315 V240" marker-end="url(#a)"/>
+    <path d="M270 220 H326" marker-end="url(#a)"/>
+  </g>
+  <text x="264" y="206" font-size="12" fill="#6f675c" text-anchor="end"
+        font-family="system-ui, sans-serif">same instant</text>
+
+  <!-- ── the database ─────────────────────────────────────────── -->
+  <rect x="330" y="24" width="360" height="392" rx="14" fill="#fbf9f4"
+        stroke="#17140f" stroke-width="2"/>
+  <text x="510" y="58" font-size="20" text-anchor="middle" fill="#17140f"
+        font-family="Georgia, 'Times New Roman', serif">SpacetimeDB</text>
+  <text x="510" y="79" font-size="12.5" text-anchor="middle" fill="#6f675c"
+        font-family="system-ui, sans-serif">reducers run as serialized transactions</text>
+  <line x1="352" y1="94" x2="668" y2="94" stroke="#ddd5c6" stroke-width="1"/>
+
+  <!-- order spine: the whole argument is that these cannot overlap -->
+  <line x1="368" y1="126" x2="368" y2="358" stroke="#17140f" stroke-width="1.5"
+        stroke-dasharray="3 4" marker-end="url(#a)"/>
+  <text x="358" y="248" font-size="11.5" fill="#6f675c" text-anchor="middle"
+        font-family="system-ui, sans-serif" transform="rotate(-90 358 248)">one at a time</text>
+
+  <!-- first transaction -->
+  <g font-family="ui-monospace, 'SF Mono', Menlo, monospace">
+    <rect x="386" y="116" width="282" height="106" rx="9" fill="#eef4ef" stroke="#2f6b4b" stroke-width="1.5"/>
+    <text x="402" y="139" font-size="11.5" fill="#2f6b4b" font-family="system-ui, sans-serif"
+          font-weight="700" letter-spacing="0.08em">FIRST</text>
+    <text x="402" y="164" font-size="13" fill="#17140f">claimed_by == None</text>
+    <text x="402" y="186" font-size="13" fill="#17140f">→ write Vanessa</text>
+    <text x="402" y="208" font-size="12.5" fill="#2f6b4b" font-weight="700"
+          font-family="system-ui, sans-serif">COMMIT</text>
+  </g>
+
+  <!-- second transaction -->
+  <g font-family="ui-monospace, 'SF Mono', Menlo, monospace">
+    <rect x="386" y="252" width="282" height="106" rx="9" fill="#f7ecea" stroke="#b3401f" stroke-width="1.5"/>
+    <text x="402" y="275" font-size="11.5" fill="#b3401f" font-family="system-ui, sans-serif"
+          font-weight="700" letter-spacing="0.08em">SECOND</text>
+    <text x="402" y="300" font-size="13" fill="#17140f">claimed_by == Vanessa</text>
+    <text x="402" y="322" font-size="13" fill="#17140f">→ no write</text>
+    <text x="402" y="344" font-size="12.5" fill="#b3401f" font-weight="700"
+          font-family="system-ui, sans-serif">ABORT — rolls back</text>
+  </g>
+
+  <!-- ── outcomes ─────────────────────────────────────────────── -->
+  <g fill="none" stroke-width="1.8">
+    <path d="M668 169 H752" stroke="#2f6b4b" marker-end="url(#aw)"/>
+    <path d="M668 305 H752" stroke="#b3401f" marker-end="url(#al)"/>
+  </g>
+
+  <g font-family="system-ui, sans-serif">
+    <rect x="760" y="132" width="196" height="76" rx="10" fill="#fbf9f4" stroke="#2f6b4b" stroke-width="1.5"/>
+    <text x="778" y="160" font-size="15" fill="#2f6b4b" font-weight="700">Vanessa gets it</text>
+    <text x="778" y="182" font-size="12" fill="#6f675c">her pin turns green;</text>
+    <text x="778" y="198" font-size="12" fill="#6f675c">Ella's greys out</text>
+
+    <rect x="760" y="268" width="196" height="76" rx="10" fill="#fbf9f4" stroke="#b3401f" stroke-width="1.5"/>
+    <text x="778" y="296" font-size="15" fill="#b3401f" font-weight="700">Ella is told why</text>
+    <text x="778" y="320" font-size="12.5" fill="#17140f" font-style="italic">“Vanessa claimed</text>
+    <text x="778" y="336" font-size="12.5" fill="#17140f" font-style="italic">this first.”</text>
+  </g>
+
+  <!-- ── the claim ────────────────────────────────────────────── -->
+  <text x="490" y="432" font-size="13.5" fill="#6f675c" text-anchor="middle"
+        font-family="system-ui, sans-serif">
+    No locks. No retry loop. No compare-and-swap. The check-then-set is one <tspan font-family="ui-monospace, Menlo, monospace" fill="#17140f">if</tspan> statement.
+  </text>
+</svg>
