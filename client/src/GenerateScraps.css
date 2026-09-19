@@ -1,0 +1,10 @@
+/* Deliberately quiet. It is a rehearsal tool, not part of the product — it
+   should never compete with Post a pickup for attention. */
+.generate {
+  font-size: 0.78rem;
+  padding: 0.35rem 0.7rem;
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+.generate:hover:not(:disabled) { color: var(--text); border-style: solid; }

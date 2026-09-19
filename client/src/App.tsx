@@ -3,6 +3,7 @@ import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import AskPanel from './AskPanel'
 import ConnectionGate from './ConnectionGate'
+import GenerateScraps from './GenerateScraps'
 import ListingPanel from './ListingPanel'
 import MapView from './MapView'
 import MyPickups from './MyPickups'
@@ -106,6 +107,7 @@ function Board() {
             : `${board.length} open · ${mine.length} yours`}
         </span>
         <div className="app__actions">
+          <GenerateScraps onError={setToast} />
           <div className="mode" role="group" aria-label="Act as">
             <button
               className={`mode__btn${mode === 'volunteer' ? ' mode__btn--on' : ''}`}
