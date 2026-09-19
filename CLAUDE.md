@@ -89,7 +89,12 @@ is 40 minutes we do not have.
 
 ## Data model
 
-Two tables. Resist adding a third.
+**Four tables as of Phase 5.** The original rule here was "two tables, resist a
+third". That rule is **deliberately lifted**, not broken: the Phase 5 goal is to
+show logic, scheduling, broadcast and server-side views all living inside the
+database, and each new table earns its place against that. It is not licence to
+keep adding them — `pickup_contact` was designed, attempted and then cut (see
+Known Traps #8).
 
 > **Syntax below is corrected against `server/CLAUDE.md`, which is Clockwork's
 > own 2.10.1 guidance shipped by `spacetime init`. That file is ground truth for
@@ -127,6 +132,17 @@ Deliberate choices:
   An enum means more Rust for no gain.
 - **The `user` table exists only for display names**, so the UI shows "Vanessa"
   instead of a hex identity. It matters more in a demo than it sounds.
+- **`claim_attempt` is an `event` table** (`#[spacetimedb::table(..., event)]`).
+  Rows are broadcast and never stored in the client cache — `count()` is 0,
+  `iter()` yields nothing, only `onInsert` fires. Right for something transient
+  like an attempt.
+- **`expiry_tick` is a scheduled table**, not `public`. Inserting a row schedules
+  `expire_listings`. No client needs to see the timer, only its effects.
+- **`completed` is indexed, `claimed_by` is not.** `claimed_by` is the natural
+  key for "my pickups", but an `Option` column cannot be an index-filter
+  argument in 2.10.1, and a `#[view]` may only start from an index — it cannot
+  call `iter()`. So `my_pickups` starts from the open listings and narrows to
+  `ctx.sender()` in Rust.
 
 ## Reducers (the whole backend — five functions)
 
@@ -263,7 +279,26 @@ All genuinely interesting client work happens in TypeScript.
    with `index.html` and a 200. Fixed in `client/src/leaflet-default-icon.ts`,
    imported by `MapView`. Verified in a real browser, before and after.
 7. Seed 10–15 realistic listings early. A demo with two rows on the map looks
-   like a prototype; fifteen looks like a product.
+   like a prototype; fifteen looks like a product. Seeding is now the `init`
+   reducer, not a shell script — `server/seed.sh` is gone.
+8. **Row-level security does not work on 2.10.1. Do not claim it.**
+   `#[client_visibility_filter]` exists only behind the crate's `unstable`
+   feature, and the crate itself says:
+
+   ```rust
+   // TODO: RLS filters are currently unimplemented, and are not enforced.
+   ```
+
+   It compiles, it publishes, and it enforces nothing — every client still
+   receives every row. A planned `pickup_contact` table holding donor address
+   and phone was cut for exactly this reason: shipping it would have meant
+   claiming row-level security in the pitch while having none. **Both tables
+   being `public` means genuinely world-readable; never put anything sensitive
+   in them.**
+9. **`init` only fires on a fresh database.** Republishing over an existing one
+   runs neither the seed nor the expiry timer. `seed_board` and `arm_expiry`
+   exist to do each on a live database without `--delete-data=always`. Both are
+   idempotent.
 
 ## Pre-hackathon setup (do this before the clock starts)
 
