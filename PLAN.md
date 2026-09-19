@@ -145,6 +145,59 @@ Just make sure the demo path is the Maincloud one, and rehearse on it.
 
 ---
 
+## Phase 5 item 1 — scheduled expiry (E, done, needs deploying)
+
+The database calls our code on a timer with no client involved. A second
+technical claim alongside the race, and one most teams will never touch.
+
+**What it does:** every 30 seconds, `expire_listings` deletes listings whose
+pickup window has passed **and that nobody claimed**. Claimed listings are left
+alone — a volunteer may be en route past the posted window, and deleting it out
+from under them would be wrong. An unclaimed listing past its window is food
+nobody came for.
+
+### Deploying it — `init` will NOT fire
+
+`#[spacetimedb::reducer(init)]` runs only on a *fresh* database. `food-pickup`
+already exists, so republishing leaves the ticker unarmed and nothing expires.
+Arm it once by hand:
+
+```bash
+cd server
+spacetime publish food-pickup --yes
+spacetime call food-pickup arm_expiry        # <- REQUIRED, or nothing happens
+spacetime logs food-pickup -f                # expect: expiry ticker armed, every 30s
+```
+
+`arm_expiry` is idempotent — calling it twice will not schedule two tickers.
+The alternative is `--delete-data=always`, which wipes the 15 seeded listings;
+arming by hand avoids that.
+
+### Demoing it
+
+The post form's shortest window is an hour, so trigger it from the CLI with a
+90-second window and let it expire on camera:
+
+```bash
+PICKUP=$(( ($(date +%s) + 90) * 1000000 ))
+spacetime call -- food-pickup post_listing '"Expiry Demo"' '"watch this vanish"' \
+  "{\"__timestamp_micros_since_unix_epoch__\": $PICKUP}" '39.2904' '-76.6122'
+```
+
+> "Nobody touch anything." Within 30 seconds of the window passing, the pin
+> disappears from both laptops at once. No client asked for that.
+
+Have `spacetime logs -f` on screen — it prints `expired listing=N` as it happens,
+which is the proof that the database did it rather than a client.
+
+### What V still owns
+
+Nothing is required — expiry works today. If V wants an expiry treatment in the
+UI (a fade, a "gone" flash), that is hers; the row simply vanishes from the
+subscription, so a plain delete already renders correctly.
+
+---
+
 ## Where to run `spacetime` commands
 
 Some commands care about your working directory and some do not. The split is

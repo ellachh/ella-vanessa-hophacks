@@ -1,4 +1,5 @@
-use spacetimedb::{Identity, ReducerContext, Table, Timestamp};
+use spacetimedb::{Identity, ReducerContext, ScheduleAt, Table, Timestamp};
+use std::time::Duration;
 
 // Input caps. These exist to keep one bad row from breaking every client:
 // every client subscribes to every row, so a malformed listing is not a local
@@ -6,6 +7,9 @@ use spacetimedb::{Identity, ReducerContext, Table, Timestamp};
 const MAX_NAME: usize = 40;
 const MAX_DONOR: usize = 80;
 const MAX_DESCRIPTION: usize = 280;
+
+/// How often the database checks for listings whose pickup window has passed.
+const EXPIRY_INTERVAL: Duration = Duration::from_secs(30);
 
 // A volunteer. Exists only so the UI can show a name instead of a hex identity.
 #[spacetimedb::table(accessor = user, public)]
@@ -196,4 +200,72 @@ pub fn complete_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
         ..listing
     });
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Expiry — the database calling our code on a timer, with no client involved.
+// ---------------------------------------------------------------------------
+
+/// A scheduled table: inserting a row schedules `expire_listings`. Not `public`
+/// — no client needs to see the timer, only its effects.
+#[spacetimedb::table(accessor = expiry_tick, scheduled(expire_listings))]
+pub struct ExpiryTick {
+    #[primary_key]
+    #[auto_inc]
+    pub scheduled_id: u64,
+    pub scheduled_at: ScheduleAt,
+}
+
+/// Runs once, when the module is first published to an empty database.
+#[spacetimedb::reducer(init)]
+pub fn init(ctx: &ReducerContext) {
+    arm(ctx);
+}
+
+/// `init` only fires on a *fresh* database, so republishing over an existing
+/// one leaves the timer unarmed. Call this once from the CLI in that case:
+///
+///     spacetime call food-pickup arm_expiry
+///
+/// Idempotent, so calling it twice will not schedule two tickers.
+#[spacetimedb::reducer]
+pub fn arm_expiry(ctx: &ReducerContext) {
+    arm(ctx);
+}
+
+fn arm(ctx: &ReducerContext) {
+    if ctx.db.expiry_tick().count() > 0 {
+        return;
+    }
+    ctx.db.expiry_tick().insert(ExpiryTick {
+        scheduled_id: 0,
+        scheduled_at: ScheduleAt::Interval(EXPIRY_INTERVAL.into()),
+    });
+    log::info!("expiry ticker armed, every {}s", EXPIRY_INTERVAL.as_secs());
+}
+
+/// Called by the database itself on the schedule above. No client triggers this
+/// and no client is awake for it — the row simply disappears from every open
+/// board at once.
+///
+/// Only *unclaimed* listings expire. A volunteer who has claimed a pickup may
+/// well be en route past the posted window; deleting it out from under them
+/// would be wrong. An unclaimed listing past its window is food nobody came for.
+#[spacetimedb::reducer]
+pub fn expire_listings(ctx: &ReducerContext, _tick: ExpiryTick) {
+    let now = ctx.timestamp;
+
+    // Collect first: deleting while iterating the same table is asking for it.
+    let stale: Vec<u64> = ctx
+        .db
+        .listing()
+        .iter()
+        .filter(|l| !l.completed && l.claimed_by.is_none() && l.pickup_by < now)
+        .map(|l| l.id)
+        .collect();
+
+    for id in stale {
+        ctx.db.listing().id().delete(id);
+        log::info!("expired listing={id} — pickup window passed with no claim");
+    }
 }
