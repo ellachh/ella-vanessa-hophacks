@@ -1,5 +1,8 @@
 import { MapContainer, TileLayer } from 'react-leaflet'
 
+// Must be imported before any <Marker> renders. See the file for why.
+import './leaflet-default-icon'
+
 /** Downtown Baltimore — the whole demo is scoped to one city. */
 export const BALTIMORE: [number, number] = [39.2904, -76.6122]
 

@@ -192,7 +192,17 @@ All genuinely interesting client work happens in TypeScript.
    in hand to publish one. Flagged for E to check; we are still on Rust, and
    150 lines of Rust is not the risk here.
 5. **Leaflet needs its CSS imported** or the map renders as a broken grey box.
-6. Seed 10–15 realistic listings early. A demo with two rows on the map looks
+6. **Leaflet's default marker icon breaks in the production build — and only
+   there.** Leaflet locates its marker PNGs at runtime by reading the
+   `background-image` of `.leaflet-default-icon-path` and stripping
+   `marker-icon.png` off the end. Vite inlines those PNGs as base64 `data:`
+   URIs, so that strip finds nothing and every `<Marker>` requests a bare
+   `marker-icon.png` that does not exist. `npm run dev` serves the stylesheet
+   unhashed and looks perfect, so this surfaces only after `npm run build` —
+   and without a 404 to notice, because the static server answers unknown paths
+   with `index.html` and a 200. Fixed in `client/src/leaflet-default-icon.ts`,
+   imported by `MapView`. Verified in a real browser, before and after.
+7. Seed 10–15 realistic listings early. A demo with two rows on the map looks
    like a prototype; fifteen looks like a product.
 
 ## Pre-hackathon setup (do this before the clock starts)

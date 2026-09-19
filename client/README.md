@@ -19,13 +19,17 @@ console errors).
 Until those exist there are no `Listing`/`User` types and nothing to subscribe
 to. See `../PROMPTS.md`, Handoff points.
 
-## Two things that will bite
+## Three things that will bite
 
 1. **The SDK is the npm package `spacetimedb`**, not
    `@clockworklabs/spacetimedb-sdk`. The old name's last release is a broken
    stub and will not install. Every tutorial still uses the old name.
 2. **`src/module_bindings/` is generated — never hand-edit it.** If the types
    look wrong, the schema is wrong. Tell Ella; do not patch the output.
+
+3. **Leaflet's default marker icon breaks in `npm run build` but not
+   `npm run dev`.** Already fixed in `src/leaflet-default-icon.ts` — just don't
+   delete that import from `MapView`. Details in `../CLAUDE.md`, trap #6.
 
 ## Layout
 
@@ -34,3 +38,4 @@ to. See `../PROMPTS.md`, Handoff points.
 | `src/App.tsx` | Shell — header + map |
 | `src/MapView.tsx` | Leaflet map. Listing markers land here in Phase 2. |
 | `src/index.css` | Imports `leaflet/dist/leaflet.css` first. Without it the map is a grey box. |
+| `src/leaflet-default-icon.ts` | Makes default markers survive the production build. Import once, before any marker. |
