@@ -83,9 +83,14 @@ That is the entire product.
 
 ### Explicitly NOT in scope
 
+**Phase 5 shipped beyond this list, deliberately:** scheduled expiry, a
+broadcast event table, a server-side view, and a transaction-enforced claim
+ceiling. Each was judged against "does this demonstrate deep, correct use of
+SpacetimeDB?" and the schema freeze was lifted on purpose. The list below is
+what remains cut.
+
 Do not build these unless the core loop is finished, demoed, and stable:
 
-- Decay timers / scheduled reducers
 - Multi-leg relay handoffs between volunteers
 - A "miss" heatmap of failed rescues
 - Real authentication (SpacetimeDB `Identity` is enough)
@@ -94,11 +99,8 @@ Do not build these unless the core loop is finished, demoed, and stable:
 - Mobile apps
 
 These were considered and deliberately cut. A finished simple loop beats a
-half-built clever one. If we are comfortably ahead at hour 20, **scheduled
-reducers** are the first thing to add back — auto-expiring a listing past its
-pickup window is cheap, and it shows off a SpacetimeDB feature that most teams
-will not touch (the database calling your code on a timer with no client
-involved).
+half-built clever one — and under a *polish* criterion that is not a tiebreaker,
+it is the rule.
 
 ## Tech stack
 
@@ -141,7 +143,8 @@ pub struct Listing {
     lng: f64,
     posted_by: Identity,
     claimed_by: Option<Identity>, // None = still open
-    completed: bool,
+    #[index(btree)]
+    completed: bool,              // indexed — see the note below
 }
 
 #[spacetimedb::table(accessor = user, public)]
@@ -150,7 +153,28 @@ pub struct User {
     identity: Identity,
     name: String,
 }
+
+// Broadcast only. Rows are never stored in the client cache.
+#[spacetimedb::table(accessor = claim_attempt, public, event)]
+pub struct ClaimAttempt {
+    listing_id: u64,
+    who: Identity,
+    won: bool,
+    at: Timestamp,
+}
+
+// Drives expire_listings. NOT public — clients see the effects, not the timer.
+#[spacetimedb::table(accessor = expiry_tick, scheduled(expire_listings))]
+pub struct ExpiryTick {
+    #[primary_key] #[auto_inc]
+    scheduled_id: u64,
+    scheduled_at: ScheduleAt,
+}
 ```
+
+Plus a per-user view, `#[spacetimedb::view(accessor = my_pickups, public)]`,
+returning the listings `ctx.sender()` currently holds — server-computed rather
+than filtered in React.
 
 Deliberate choices:
 
@@ -170,15 +194,36 @@ Deliberate choices:
   call `iter()`. So `my_pickups` starts from the open listings and narrows to
   `ctx.sender()` in Rust.
 
-## Reducers (the whole backend — five functions)
+## Reducers — ten, in three groups
+
+**The loop** — everything a volunteer does:
 
 | Reducer | Behavior |
 |---|---|
 | `set_name(name)` | Upsert `user` row for `ctx.sender` |
-| `post_listing(donor, description, pickup_by, lat, lng)` | Insert with `posted_by = ctx.sender`, `claimed_by = None` |
-| `claim_listing(id)` | **If `claimed_by` is None**, set to `ctx.sender`. Otherwise no-op. |
-| `unclaim_listing(id)` | Only if `claimed_by == ctx.sender`; set back to `None` |
-| `complete_listing(id)` | Only if `claimed_by == ctx.sender`; set `completed = true` |
+| `post_listing(donor, description, pickup_by, lat, lng)` | Validates, then inserts with `posted_by = ctx.sender`, `claimed_by = None` |
+| `claim_listing(id)` | **If `claimed_by` is None**, set to `ctx.sender`. Otherwise `Err`. Also enforces the 3-open-claim ceiling and writes a `claim_attempt`. |
+| `unclaim_listing(id)` | Only if `claimed_by == ctx.sender` |
+| `complete_listing(id)` | Only if `claimed_by == ctx.sender`; sets `completed = true` |
+
+**Scheduled** — the database calling our code with no client involved:
+
+| Reducer | Behavior |
+|---|---|
+| `expire_listings(tick)` | Every 30s: deletes listings past `pickup_by` **that nobody claimed**. Claimed ones are left alone — a volunteer may be en route past the window. |
+
+**Operational** — because `init` only fires on a fresh database (trap #9):
+
+| Reducer | Behavior |
+|---|---|
+| `init()` | Fresh DB only: arms the expiry ticker and seeds the board |
+| `arm_expiry()` | Arms the ticker on a live DB. Idempotent. |
+| `seed_board()` | Seeds a live DB. No-ops if any listing exists. |
+| `reset_board()` | **Wipes and re-seeds** with windows measured from now. Run before every rehearsal — `seed_board` cannot refill a board that expiry has left fully claimed. |
+
+All five loop reducers return `Result<(), String>`, and those strings are
+user-facing demo copy — they get read aloud. `claim_listing`'s rejection is
+`"<name> claimed this first."`, resolved from the `user` table.
 
 The conditional in `claim_listing` is the project's technical centerpiece. Do not
 "simplify" it into an unconditional write.
@@ -207,7 +252,7 @@ Clockwork judge would be wrong about their own product, in front of the people
 who wrote it — so the honest line is point 3 below: everything public is
 world-readable, and here is what we would do about it in production.
 
-3. **`public` means world-readable.** Both tables are `public`, so every client
+3. **`public` means world-readable.** `listing`, `user` and `claim_attempt` are `public`, so every client
    can read every row — including `user`, which maps Identity to a real name.
    Writes still require reducers, so this is read-only exposure. Correct for a
    public board and fine for the demo; worth saying out loud if a judge asks
@@ -365,6 +410,9 @@ alarm. The failure mode is not that SpacetimeDB is too hard — it is spending
 twelve hours refusing to admit the toolchain is not cooperating.
 
 ## Demo script
+
+**The full script, with the setup checklist and prepared answers, is
+`docs/DEMO.md`.** The beats:
 
 1. Two laptops side by side, both showing the map.
 2. Ella posts a listing. It appears on Vanessa's screen instantly, untouched.
