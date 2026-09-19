@@ -5,6 +5,8 @@
 > This file is the shared plan for Ella and Vanessa. If you are an AI assistant
 > working in this repo, read the whole thing before writing code — especially
 > **Scope Discipline** and **Known Traps**.
+>
+> Task-level breakdown, ownership and sequencing live in `PLAN.md`.
 
 ## One-line pitch
 
@@ -12,22 +14,19 @@ A live food-rescue board: restaurants post surplus food, volunteer drivers
 claim pickups, and every other volunteer's screen updates instantly so nobody
 drives to the same pickup twice.
 
-## Tracks we are entering
+## Track we are entering
 
-We submit **one project to two tracks**:
+**SpacetimeDB — Best Use of SpacetimeDB.** 1st $500 / 2nd $200 / 3rd $100.
 
-1. **SpacetimeDB — Best Use of SpacetimeDB** (primary). 1st $500 / 2nd $200 / 3rd $100.
-2. **Bloomberg — Most Philanthropic Hack** (secondary). 1st: Beats headphones.
+This is our only submission. We are not entering the philanthropy track.
 
 Reasoning: SpacetimeDB is a genuinely niche track — the barrier to entry is real
 (unfamiliar database, backend modules in Rust), so few teams will attempt it, and
-it has three prize slots. Philanthropy is the opposite: zero barrier to entry, so
-it is one of the most crowded tracks at any hackathon, and it pays out only to
-1st. Building for SpacetimeDB and submitting to philanthropy as a second entry
-costs us nothing extra and gives us the thin track as our real bet.
-
-Confirm at the opening ceremony that HopHacks allows one project in multiple
-tracks. It almost always does, but verify.
+it has three prize slots instead of one. Every design decision in this file should
+be judged by one question: **does this demonstrate deep, correct use of
+SpacetimeDB?** Food rescue is the domain we chose because it makes contested
+real-time state legible to a judge in ten seconds. It is the setting, not the
+point.
 
 ## Why SpacetimeDB actually fits (this is the pitch)
 
@@ -69,9 +68,11 @@ Do not build these unless the core loop is finished, demoed, and stable:
 - Mobile apps
 
 These were considered and deliberately cut. A finished simple loop beats a
-half-built clever one. If we are comfortably ahead at hour 20, the miss-heatmap
-is the first thing to add back, because it is cheap and it strengthens the
-philanthropy submission.
+half-built clever one. If we are comfortably ahead at hour 20, **scheduled
+reducers** are the first thing to add back — auto-expiring a listing past its
+pickup window is cheap, and it shows off a SpacetimeDB feature that most teams
+will not touch (the database calling your code on a timer with no client
+involved).
 
 ## Tech stack
 
@@ -182,7 +183,7 @@ allowed; pre-written project code is not.
 | 1.5 – 5 | Real schema + all five reducers, tested from the CLI |
 | 5 – 20 | React client: map, post form, claim flow, my-pickups |
 | 20 – 28 | Two-device sync polish, seed data, visual cleanup |
-| 28 – 32 | Demo rehearsal, Devpost writeup, submit to **both** tracks |
+| 28 – 32 | Demo rehearsal, Devpost writeup, submit to the SpacetimeDB track |
 | 32+ | Buffer. Something will break. |
 
 ### The bail-out rule
@@ -199,8 +200,10 @@ twelve hours refusing to admit the toolchain is not cooperating.
 3. **Both tap claim on the same listing at the same moment.** One wins, one sees
    it grey out. Explain the serialized-transaction argument here.
 4. Winner marks it complete; it clears from both boards.
-5. Close on the philanthropy framing: food dies twenty minutes from someone who
-   needs it, and the gap is a coordination problem, not a supply problem.
+5. Close on the technical argument, not the mission. The domain makes the demo
+   legible; the reason to care is that contested claims, live subscriptions and
+   authoritative server logic are what SpacetimeDB is *for*, and we used it that
+   way instead of as a Postgres substitute.
 
 ## Scope discipline (for both of us, and for any AI assistant in this repo)
 

@@ -1,0 +1,194 @@
+# PLAN.md — Task breakdown and ownership
+
+Companion to `CLAUDE.md` (which holds the idea, scope and data model).
+This file holds **who does what, in what order, and what blocks what**.
+
+Hours are measured from hack start. Phase 0 should be done *before* the clock
+starts if the rules allow it.
+
+Owners: **E** = Ella, **V** = Vanessa, **E+V** = both, together.
+
+---
+
+## Why the work is not split cleanly backend/frontend
+
+The backend is roughly 150 lines — two tables, five reducers. It will be finished
+around hour 8. The frontend is 20+ hours of work. A hard backend/frontend wall
+leaves E idle for two thirds of the event.
+
+So: E owns the backend **and then joins the frontend**. The split below is
+sequenced around that, and around one hard rule — *freeze the schema early and
+generate bindings immediately*, so V can build against real types long before the
+reducers actually do anything.
+
+---
+
+## Phase 0 — Both machines can build and publish (BLOCKING)
+
+Nothing else starts until both laptops pass this. If only one person can publish
+a module, the other cannot test her own work and the team has a bus factor of 1.
+
+- [ ] **E+V** Confirm HopHacks' rules on pre-event setup. Installing tooling and
+      doing tutorials is near-universally allowed; pre-written project code is not.
+- [ ] **E+V** Install Rust toolchain (`rustup`) on both machines
+- [ ] **E+V** Install the `spacetime` CLI on both machines
+- [ ] **E+V** Verify the WASM target exists: `rustup target list --installed | grep wasm`.
+      If missing: `rustup target add wasm32-unknown-unknown`. The CLI may do this
+      for you — check before assuming it is broken.
+- [ ] **E+V** Run the official quickstart end to end on **each** machine: local
+      server running, module published, client receiving one live update
+- [ ] **E+V** Delete the quickstart project
+- [ ] **E+V** Skim `spacetime --help` and the subcommand help. The CLI is the
+      ground truth for command syntax, not this file and not an AI assistant's
+      memory.
+
+### Verify your install right now
+
+```bash
+spacetime --version        # CLI present?
+spacetime start            # local server boots? (leave running in its own terminal)
+rustc --version            # Rust present?
+rustup target list --installed | grep wasm    # WASM target present?
+```
+
+If `spacetime start` boots and holds, you are in good shape.
+
+**Phase 0 exit criteria:** both laptops have published a module and seen a live
+update land in a client. Do not proceed on one person's machine alone.
+
+---
+
+## Phase 1 — Schema freeze and bindings (E+V together, ~hours 0–2)
+
+This is the most important 2 hours of the event. Do it side by side, not split.
+
+- [ ] **E+V** Agree the final schema from `CLAUDE.md`. Argue about it now, not later.
+- [ ] **E** `spacetime init` a Rust module in `server/`
+- [ ] **E** Write the two table definitions (`listing`, `user`) — copy exact macro
+      syntax from the current quickstart, not from `CLAUDE.md`
+- [ ] **E** Write all five reducers as **empty stubs** that compile and do nothing
+- [ ] **E** `spacetime publish` the stub module — confirm it publishes
+- [ ] **E** `spacetime generate --lang typescript --out-dir client/src/module_bindings`
+- [ ] **E** Commit the generated bindings
+- [ ] **V** In parallel: scaffold `client/` — Vite + React + TypeScript
+- [ ] **V** Install deps: SpacetimeDB TS SDK, `leaflet`, `react-leaflet`
+- [ ] **V** Import Leaflet's CSS and render a bare map centered on Baltimore.
+      *If the map is a grey box, the CSS import is missing.*
+
+**Phase 1 exit criteria:** `client/src/module_bindings` exists and is committed;
+V can import typed `Listing` and `User` and get autocomplete. The reducers do
+nothing yet and that is fine — V is unblocked.
+
+### Schema freeze rule
+
+After Phase 1, the schema is **frozen**. If it genuinely must change:
+E makes the change, republishes, regenerates bindings, commits, and **tells V
+immediately in person**. A silent schema change is how you lose four hours at
+hour 25.
+
+---
+
+## Phase 2 — Parallel build (hours 2–10)
+
+### E — backend
+
+- [ ] `set_name` — upsert `user` row for `ctx.sender`
+- [ ] `post_listing` — insert with `posted_by = ctx.sender`, `claimed_by = None`
+- [ ] `claim_listing` — **conditional**: only write if `claimed_by` is `None`.
+      This is the centerpiece. Do not simplify it into an unconditional write.
+- [ ] `unclaim_listing` — only if `claimed_by == ctx.sender`
+- [ ] `complete_listing` — only if `claimed_by == ctx.sender`
+- [ ] Test every reducer from the CLI before V ever touches it:
+      `spacetime call`, then `spacetime sql <module> "SELECT * FROM listing"`
+- [ ] **Prove the race.** Fire two `claim_listing` calls at the same listing as
+      fast as possible and confirm exactly one wins. Save the terminal output —
+      this is demo evidence.
+- [ ] Write a seed script: 12–15 realistic Baltimore listings with plausible
+      lat/lng, donors and pickup windows
+- [ ] Learn `spacetime logs` for debugging
+
+### V — frontend
+
+- [ ] Connect to the module, subscribe to `SELECT * FROM listing` and `SELECT * FROM user`
+- [ ] Render listings as map markers, driven **only** by the subscription
+- [ ] Name-entry screen on first load (calls `set_name`)
+- [ ] Listing detail panel with a Claim button
+- [ ] Open vs. claimed visual states — claimed must be obviously different at a glance
+- [ ] Basic layout and styling
+
+**V's hard rule:** no `fetch`, no polling, no React Query, no Zustand. Rows change,
+the subscription fires, React re-renders. If you are writing data-fetching code,
+stop and re-read the client SDK docs — you have misunderstood the database.
+
+---
+
+## Phase 3 — E joins the frontend (hours 10–20)
+
+Backend is done. Do not go looking for more backend work.
+
+- [ ] **E** Post-listing form (donor, description, pickup-by, location picker)
+- [ ] **E** "My pickups" view — claimed-by-me listings, with unclaim and complete
+- [ ] **V** Map polish: clustering if needed, popups, pickup-window display
+- [ ] **V** Empty states, loading state, connection-lost state
+- [ ] **E+V** Run the seed script and look at a full board for the first time
+
+---
+
+## Phase 4 — Integration and demo (hours 20–32)
+
+- [ ] **E+V** Two-laptop testing against the **same** module instance
+- [ ] **E+V** Simultaneous-claim test through the real UI, repeatedly, until reliable
+- [ ] **E+V** Fix whatever that surfaces (it will surface something)
+- [ ] **V** Final visual pass
+- [ ] **E** Demo script written out and rehearsed at least three times
+- [ ] **E+V** Devpost writeup — screenshots, the technical argument, repo link
+- [ ] **E+V** Submit. Do not leave this to the last 20 minutes.
+
+### Demo ownership
+
+**E gives the technical pitch.** The argument you are selling is a backend
+argument about serialized transactions resolving a contested claim; the person
+who wrote the reducers should be making it. V drives the second laptop and
+handles the mission framing and product questions.
+
+---
+
+## Git workflow (prevents 90% of merge conflicts)
+
+| Path | Owner | Rule |
+|---|---|---|
+| `server/` | E | V does not edit |
+| `client/src/module_bindings/` | E | **Generated.** Never hand-edit. E regenerates and commits. |
+| `client/` (everything else) | V | E edits only in Phase 3, on agreed files |
+| `CLAUDE.md`, `PLAN.md` | E+V | Update when reality diverges from the plan |
+
+Commit often and push often. Pull before you start a work session. In Phase 3,
+agree out loud on which files E is taking so you are not both in the same
+component.
+
+---
+
+## Risk register
+
+| Risk | Trigger to watch for | Response |
+|---|---|---|
+| Toolchain will not cooperate | Hour 1.5 with no live update | **Bail out.** Pivot to the memetics or marimo track. Set a real alarm. |
+| Stale API examples | Macro or method "does not exist" errors | Stop searching. Open the current official quickstart and copy exact syntax. Do not trust blog posts, Stack Overflow, older tutorials, or an AI assistant's memory. |
+| Schema change after Phase 1 | E wants "one more field" | Allowed but expensive: republish, regenerate, commit, tell V in person immediately. |
+| E idle after backend | Hour 10, backend done | Move to Phase 3 frontend tasks. Do not gold-plate the module. |
+| Demo fails live | Simultaneous claim is flaky in the UI | Have the saved CLI race output as a fallback proof. Rehearse three times. |
+| Grey box instead of a map | Leaflet renders nothing | Missing CSS import. |
+| Submission deadline | Hour 30 | Submit a working-but-unpolished build early, then update it. A late perfect build scores zero. |
+
+---
+
+## Scope guard
+
+Everything in `CLAUDE.md` under **Explicitly NOT in scope** stays out until the
+core loop is finished, demoed and stable. Suggest features, do not build them.
+
+The one exception worth revisiting if you are comfortably ahead at hour 20:
+**scheduled reducers** for auto-expiring listings past their pickup window. It is
+cheap, and it demonstrates a SpacetimeDB feature most teams will never touch —
+the database calling your code on a timer with no client involved. That is
+directly on-track for the judges. Nothing else on the cut list is.
