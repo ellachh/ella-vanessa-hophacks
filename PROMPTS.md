@@ -335,6 +335,140 @@ exists for good reasons and this is the one candidate that might earn breaking
 it — but it is a decision both of us make out loud, not a thing one session
 does quietly.
 
+### Tier 0 — the honest problem these are solving
+
+A fair criticism of Relay: a chat app has more moving parts than ours. That is
+true about *surface area* and false about *depth* — chat has zero contention,
+every message is an independent append, which is exactly why it is the tutorial.
+Ours exercises the one guarantee that is hard to get right.
+
+But our whole technical argument is currently **one `if` statement, demonstrated
+once, by two people tapping in a coordinated way.** A judge can fairly say "that
+is just a conditional." The answer is not to bolt on unrelated features. It is
+to use the database for more of the things a backend normally does.
+
+Everything below is a **proposal, not a decision.** Nothing here is built. Pick
+deliberately and stop early; three finished things beat six half-built ones.
+
+---
+
+**4. Contention stress test — client-side, ~30 lines, V.**
+
+Fire many claims at one listing at once and tally the outcomes:
+
+```ts
+const results = await Promise.allSettled(
+  Array.from({ length: 50 }, () => claimListing({ id })),
+)
+const won = results.filter((r) => r.status === 'fulfilled').length
+// won === 1, always
+```
+
+> 50 claims fired simultaneously · 1 succeeded · 49 rejected
+> 0 double-claims, 0 lost writes, 0 lines of locking code.
+
+Two people tapping is an anecdote; fifty simultaneous calls is a demonstrated
+guarantee a judge can trigger themselves. This is the cheapest answer to "that
+is just a conditional."
+
+**5. Event table — a live contention feed. E (Rust) + V (ticker UI).**
+
+Event tables are a SpacetimeDB feature most people do not know exists: rows are
+never stored in the client cache, only `onInsert` fires. They are for transient
+broadcast, which is exactly what a claim attempt is.
+
+```rust
+#[spacetimedb::table(accessor = claim_attempt, public)]
+pub struct ClaimAttempt {
+    listing_id: u64,
+    who: Identity,
+    won: bool,
+    at: Timestamp,
+}
+```
+
+Today only the loser learns they lost, through their own `Result`. With this the
+whole board sees every attempt, won or lost.
+
+> Demo: a live ticker. "Ella tried #30 — lost. Vanessa took #30."
+
+Contention stops being a staged moment and becomes an ambient property of the
+app.
+
+**6. Client visibility filter — real row-level security. E.**
+
+Both tables are `public` today, so every client reads every row. CLAUDE.md flags
+this as the thing we would say we would fix for production. We could just fix it:
+
+```rust
+#[client_visibility_filter]
+const CONTACT_FILTER: Filter =
+    Filter::Sql("SELECT * FROM pickup_contact WHERE claimed_by = :sender");
+```
+
+Put the donor's exact address and phone in a table only the volunteer holding
+the claim can see. That is a real requirement — you do not broadcast the
+location of unattended food — and it is enforced by the database, not by the
+client choosing not to render it. Asked about production readiness, the answer
+becomes "already there" instead of "we would add that."
+
+**7. `init` reducer replaces `seed.sh`. E.**
+
+```rust
+#[spacetimedb::reducer(init)]
+pub fn init(ctx: &ReducerContext) { /* the 15 Baltimore listings */ }
+```
+
+The database seeds itself on publish. Kills the bash script, and
+`spacetime publish --delete-data=always` gives a fresh board in one command —
+which matters when rehearsing the demo repeatedly.
+
+**8. Per-user view for My Pickups. E.**
+
+```rust
+#[view(accessor = my_pickups, public)]
+fn my_pickups(ctx: &ViewContext) -> Vec<Listing> {
+    ctx.db.listing().claimed_by().filter(ctx.sender()).collect()
+}
+```
+
+Server-computed instead of downloading every row and filtering in React.
+Needs `#[index(btree)]` on `claimed_by`, which is worth having anyway.
+
+**9. Scope the subscription itself. V.**
+
+We currently pull every row and filter locally — the naive pattern:
+
+```tsx
+useTable(tables.listing)                                     // everything
+useTable(tables.listing.where(r => r.completed.eq(false)))   // only what we need
+```
+
+Small diff, real depth signal: it shows we understand subscription semantics
+rather than treating the database as a table to download.
+
+**10. A second kind of invariant. E.**
+
+"A volunteer may hold at most 3 pickups at once." Another check-then-set, but it
+counts rows *inside the transaction* rather than checking one field —
+transactional reasoning beyond a single boolean, and a realistic domain rule.
+
+### Why these add up to more than their parts
+
+Land three or four and the pitch changes shape:
+
+> Logic, authorization, scheduling, visibility and broadcast all live **inside
+> the database**. Our React client has no business logic in it at all — it
+> subscribes and renders.
+
+That is a much stronger "Best Use of SpacetimeDB" claim than one conditional. It
+is the difference between using a feature correctly and using the thing as an
+application server, which is what it is for.
+
+**Suggested picks if time is short:** 4 (cheap, V, high impact), 5 (the best
+demo), 7 (makes rehearsal easy). Leave 6 unless comfortably ahead — it is the
+most impressive and the most likely to eat an afternoon.
+
 ### Do not build
 
 - Anything else on CLAUDE.md's cut list. It is blunt that nothing else there is
