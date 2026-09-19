@@ -153,20 +153,73 @@ handles the mission framing and product questions.
 
 ---
 
-## Git workflow (prevents 90% of merge conflicts)
+## Git workflow and merge contract
+
+### Do we need separate branches?
+
+**Phases 0–2: no. Both work directly on `main`.**
+
+Your directories are disjoint — E is in `server/`, V is in `client/`. Git merges
+changes to different files without complaint, so branches would buy you nothing
+and cost you merge ceremony at 3am. The realistic hackathon failure mode is a
+botched rebase under time pressure, not an overwritten file.
+
+**Phase 3: yes, short-lived branches.** Once E joins the frontend you are both in
+`client/` and the conflict risk becomes real. One branch per feature, merged the
+same day. A branch that lives more than a few hours is a liability.
+
+### The rule for phases 0–2
+
+```bash
+git pull --rebase origin main    # before you start, and before every push
+# ... work ...
+git add -A && git commit -m "..."
+git push origin main
+```
+
+`--rebase` keeps history linear and avoids merge commits nobody will read.
+Push at least every hour — an unpushed laptop is an unbacked-up laptop.
+
+### The rule for phase 3
+
+```bash
+git checkout -b feat/post-form      # E
+git checkout -b feat/map-popups     # V
+# ... work, commit ...
+git push -u origin feat/post-form
+git checkout main && git pull --rebase origin main && git merge feat/post-form
+git push origin main
+```
+
+Merge your own branch as soon as the feature works. Do not batch them.
+
+### File ownership
 
 | Path | Owner | Rule |
 |---|---|---|
-| `server/` | E | V does not edit |
-| `client/src/module_bindings/` | E | **Generated.** Never hand-edit. E regenerates and commits. |
-| `client/` (everything else) | V | E edits only in Phase 3, on agreed files |
+| `server/` | E | V does not edit, ever |
+| `client/src/module_bindings/` | E | **Generated output.** Never hand-edit. Only E regenerates and commits. |
+| `client/` (everything else) | V | E edits only in Phase 3, on files agreed out loud |
 | `CLAUDE.md`, `PLAN.md` | E+V | Update when reality diverges from the plan |
 
-Commit often and push often. Pull before you start a work session. In Phase 3,
-agree out loud on which files E is taking so you are not both in the same
-component.
+Ownership is what actually prevents conflicts — branches only defer them.
+Respect the table and you will barely see a conflict all weekend.
 
----
+### Two rules that prevent the expensive failures
+
+1. **Never hand-edit `module_bindings/`.** It is generated. Editing it means your
+   client and your module silently disagree, and you will not find out until the
+   demo. If the types are wrong, fix the schema and regenerate.
+2. **Announce every schema change out loud.** E republishes, regenerates, commits,
+   and *says so*. V pulls immediately. A silent schema change is the single most
+   expensive mistake available to you.
+
+### If you do hit a conflict
+
+Do not fight it under time pressure. The person who owns that file per the table
+above wins — take their version wholesale (`git checkout --ours` / `--theirs`),
+confirm out loud, move on. Reconstructing a clever merge at hour 28 is how teams
+lose demos.
 
 ## Risk register
 
