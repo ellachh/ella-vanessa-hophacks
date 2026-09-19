@@ -141,6 +141,32 @@ Deliberate choices:
 The conditional in `claim_listing` is the project's technical centerpiece. Do not
 "simplify" it into an unconditional write.
 
+## Security — what actually protects this
+
+Reviewed at Phase 1. No secrets in the repo or its history, no vulnerable
+dependencies. The real surface is the data model, and it rests on three things:
+
+1. **Any connected client can call any reducer.** That is the SpacetimeDB model,
+   not a flaw — the *conditionals inside the reducers are the access control*.
+   `unclaim_listing` and `complete_listing` must verify
+   `claimed_by == ctx.sender` before writing. Drop those checks and anyone can
+   complete or release someone else's pickup. `claim_listing`'s `is_none()` test
+   is the same kind of guard doing double duty as the race resolver.
+2. **`ctx.sender` is the only trustworthy identity.** Never accept an `Identity`
+   as a reducer argument and act on it — a client can pass any value it likes.
+   The template's guidance states this first and in bold.
+3. **`public` means world-readable.** Both tables are `public`, so every client
+   can read every row — including `user`, which maps Identity to a real name.
+   Writes still require reducers, so this is read-only exposure. Correct for a
+   public board and fine for the demo; worth saying out loud if a judge asks
+   what you would change for production.
+
+**Client-side, one concrete trap:** Leaflet's `bindPopup()` takes an HTML string
+and does not escape it. Listing text is free-form input from any anonymous
+client, so building popups that way is stored XSS. Use react-leaflet's `<Popup>`
+with JSX children — React escapes those — and never interpolate `description` or
+`donor` into an HTML string.
+
 ## Client architecture
 
 The TypeScript SDK ships first-party React bindings. Wrap the app in
