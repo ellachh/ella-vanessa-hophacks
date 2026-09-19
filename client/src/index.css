@@ -484,6 +484,10 @@ html, body, #root { height: 100%; margin: 0; }
 .shopfront {
   align-self: stretch;
   padding: 0.85rem 0.9rem 0.9rem;
+  /* The Donor pill sits directly above this and `.panel` has no row gap, so
+     without a top margin the badge touches the card. Matches the breathing room
+     ListingPanel gives between its own badge and the donor name. */
+  margin-top: 0.75rem;
   margin-bottom: 0.9rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
