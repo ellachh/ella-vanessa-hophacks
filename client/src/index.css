@@ -179,6 +179,9 @@ html, body, #root { height: 100%; margin: 0; }
 
 /* Thin-bordered pills, the way the reference sets its metadata. */
 .badge {
+  /* `.panel` is a flex column, which blockifies inline-block and then stretches
+     it to full width. Without this the pill reads as a banner. */
+  align-self: flex-start;
   display: inline-block; padding: 0.22rem 0.6rem; border-radius: 999px;
   font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em;
   border: 1px solid currentColor; background: transparent;
@@ -388,3 +391,26 @@ html, body, #root { height: 100%; margin: 0; }
   .spinner, .feed__row, .pin--selected::before { animation: none; display: none; }
   .pin { transition: none; }
 }
+
+/* ---------- donor view ---------- */
+.donor__list { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.9rem; }
+.donor__row {
+  padding: 0.85rem 0.95rem; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--line);
+}
+.donor__what { margin: 0 0 0.2rem; font-weight: 650; font-size: 0.95rem; }
+.donor__desc { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+.donor__status { margin: 0 0 0.25rem; font-size: 0.82rem; font-weight: 600; }
+.donor__status--open { color: var(--open); }
+.donor__status--taken { color: var(--mine); }
+
+/* The mode switch reads as one control, not two buttons. */
+.mode { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.mode__btn {
+  padding: 0.35rem 0.8rem; border: 0; background: transparent; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; color: var(--muted);
+  transition: background-color var(--ease), color var(--ease);
+}
+.mode__btn:hover { color: var(--text); }
+.mode__btn--on { background: var(--ink); color: #faf8f3; }
+.mode__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }

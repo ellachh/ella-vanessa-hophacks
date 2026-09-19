@@ -11,6 +11,7 @@ import Toast from './Toast'
 import { sameIdentity } from './identity'
 import { tables } from './module_bindings'
 import RadiusFilter from './RadiusFilter'
+import RestaurantView from './RestaurantView'
 import { listingsWithin, withinRadius, type Radius } from './radius'
 import './AppActions.css'
 
@@ -48,6 +49,7 @@ function Board() {
   const [toast, setToast] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
   const [showMine, setShowMine] = useState(false)
+  const [mode, setMode] = useState<'volunteer' | 'donor'>('volunteer')
   const dismiss = useCallback(() => setToast(null), [])
 
   // A completed pickup clears from every board — that is the last demo beat.
@@ -66,6 +68,15 @@ function Board() {
     [board, identity],
   )
 
+  // Switching to donor mode widens the subscription back out. The radius is a
+  // volunteer's "how far will I drive"; a donor's own listings should never be
+  // hidden from them because of it.
+  const switchMode = useCallback((next: 'volunteer' | 'donor') => {
+    setMode(next)
+    if (next === 'donor') setRadius(null)
+    setShowMine(false)
+  }, [])
+
   // Jumping to a pickup from the list shows it in the detail panel.
   const jumpTo = useCallback((id: bigint) => {
     setSelectedId(id)
@@ -78,16 +89,38 @@ function Board() {
         <h1 className="app__title">Scraps</h1>
         <p className="app__tagline">Live food rescue board — Baltimore</p>
         <span className="app__count">
-          {board.length} open · {mine.length} yours
+          {mode === 'donor'
+            ? `${board.filter((l) => sameIdentity(l.postedBy, identity)).length} posted by you`
+            : `${board.length} open · ${mine.length} yours`}
         </span>
-        <RadiusFilter value={radius} onChange={setRadius} shown={board.length} />
+        {mode === 'volunteer' && (
+          <RadiusFilter value={radius} onChange={setRadius} shown={board.length} />
+        )}
         <div className="app__actions">
-          <button
-            className={`btn${showMine ? ' btn--on' : ''}`}
-            onClick={() => setShowMine((v) => !v)}
-          >
-            Your pickups ({mine.length})
-          </button>
+          <div className="mode" role="group" aria-label="Act as">
+            <button
+              className={`mode__btn${mode === 'volunteer' ? ' mode__btn--on' : ''}`}
+              aria-pressed={mode === 'volunteer'}
+              onClick={() => switchMode('volunteer')}
+            >
+              Volunteer
+            </button>
+            <button
+              className={`mode__btn${mode === 'donor' ? ' mode__btn--on' : ''}`}
+              aria-pressed={mode === 'donor'}
+              onClick={() => switchMode('donor')}
+            >
+              Donor
+            </button>
+          </div>
+          {mode === 'volunteer' && (
+            <button
+              className={`btn${showMine ? ' btn--on' : ''}`}
+              onClick={() => setShowMine((v) => !v)}
+            >
+              Your pickups ({mine.length})
+            </button>
+          )}
           <button className="btn btn--primary" onClick={() => setPosting(true)}>
             Post a pickup
           </button>
@@ -104,7 +137,14 @@ function Board() {
             onSelect={setSelectedId}
           />
         </div>
-        {showMine ? (
+        {mode === 'donor' ? (
+          <RestaurantView
+            listings={board}
+            users={users}
+            me={identity}
+            onPost={() => setPosting(true)}
+          />
+        ) : showMine ? (
           <MyPickups listings={mine} onSelect={jumpTo} onError={setToast} />
         ) : (
           <ListingPanel listing={selected} users={users} me={identity} onError={setToast} />
