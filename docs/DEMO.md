@@ -17,7 +17,11 @@ Run this every time, even if "nothing changed since last time."
 - [ ] **Both volunteers have set names.** The race message reads
       "Vanessa claimed this first" by looking up the `user` table — without a
       name it degrades to "Someone else" and the best line in the demo lands flat
-- [ ] Board has ~15 listings — `spacetime call food-pickup seed_board` if thin
+- [ ] **Reset the board** — `spacetime call food-pickup reset_board`. Do this
+      before every rehearsal and once more before judging. It wipes and re-seeds
+      with pickup windows measured from now. Without it, `expire_listings` will
+      have deleted every unclaimed listing whose window has passed, leaving a
+      board that is entirely claimed and that `seed_board` refuses to refill.
 - [ ] Ella holds **fewer than 3 open claims**, or every claim fails with the
       ceiling message instead of the contention message
 - [ ] A third window open with `spacetime logs food-pickup -f`

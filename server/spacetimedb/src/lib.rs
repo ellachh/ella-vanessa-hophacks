@@ -429,3 +429,25 @@ fn seed(ctx: &ReducerContext) {
 pub fn seed_board(ctx: &ReducerContext) {
     seed(ctx);
 }
+
+/// Wipe every listing and lay down a fresh board with pickup windows measured
+/// from *now*.
+///
+/// `seed_board` deliberately no-ops when the board is non-empty, which makes it
+/// useless for the case that actually comes up: rehearsing. Between runs the
+/// board is a mess of claimed, delivered and expired rows, and `expire_listings`
+/// will have deleted every unclaimed listing whose window has passed — leaving
+/// a board that is entirely claimed and cannot be re-seeded.
+///
+/// One command, same clean state every time. Run it before each rehearsal and
+/// once more before judging.
+#[spacetimedb::reducer]
+pub fn reset_board(ctx: &ReducerContext) {
+    let all: Vec<u64> = ctx.db.listing().iter().map(|l| l.id).collect();
+    let n = all.len();
+    for id in all {
+        ctx.db.listing().id().delete(id);
+    }
+    seed(ctx);
+    log::info!("reset_board: cleared {n} listings, re-seeded {}", SEED.len());
+}

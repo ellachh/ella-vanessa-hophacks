@@ -197,6 +197,29 @@ and not where you would expect.
 **3. `.update()` lives on the primary key, not on any index.**
 `.claimed_by().update(...)` does not exist; it is `.id().update(...)`.
 
+### Expiry is confirmed working in production — and it will eat your board
+
+Observed live: a board seeded hours earlier came back with only 6 listings, all
+of them claimed. That is exactly the signature of `expire_listings` doing its
+job — unclaimed listings past their pickup window were deleted, claimed ones
+were left alone.
+
+Good evidence the scheduled reducer works. Also a trap:
+
+- Seeded windows are 2–8 hours from the moment of seeding. Leave the board
+  overnight and every unclaimed listing is gone.
+- `seed_board` no-ops when any listing exists, so a board that is entirely
+  claimed **cannot be refilled with it**.
+
+Use `reset_board` instead: it wipes every listing and re-seeds with windows
+measured from now.
+
+```bash
+spacetime call food-pickup reset_board
+```
+
+Run it before each rehearsal and once more before judging.
+
 ### Open question — verify before relying on it
 
 `claim_listing` writes a `claim_attempt` row on **both** paths, won and lost.
