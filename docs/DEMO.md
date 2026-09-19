@@ -9,6 +9,38 @@ anticipate, and the prize card says *polished*, not *comprehensive*.
 
 ---
 
+## Deploying
+
+Connect the repo to **Netlify** or **Vercel** — `netlify.toml` and `vercel.json`
+are committed, so neither needs dashboard configuration beyond pointing at the
+repo. On Vercel, set **Root Directory** to `client`; Netlify reads `base` from
+the file.
+
+Every push to `main` then redeploys. That matters because a stale live link is
+worse than no link: a judge opening a four-hour-old build mid-pitch sees
+something that does not match the laptop.
+
+**No environment variables are needed.** The xAI key lives in the module's
+private `secret` table; nothing secret is in the bundle.
+
+**Demo from `npm run dev` on your own laptops** — it is what you rehearsed on and
+it does not depend on a host being up. The deployed link is for two other things:
+the Devpost entry, and handing a judge a URL so they can open it on their phone
+and try to claim a pickup before you do. That is a far stronger moment than two
+laptops you control.
+
+### Open the production build before judging
+
+```bash
+cd client && npm run build && npm run preview
+```
+
+Click through the whole demo on it. Trap #6 appeared **only** in a production
+build and produced no console error — dev looked perfect while the built site
+was broken. A deployed link nobody has opened is how that recurs.
+
+---
+
 ## Before judges arrive — the setup checklist
 
 Run this every time, even if "nothing changed since last time."

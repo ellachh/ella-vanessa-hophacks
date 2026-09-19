@@ -41,9 +41,11 @@ import PostListingReducer from "./post_listing_reducer";
 import ResetBoardReducer from "./reset_board_reducer";
 import SeedBoardReducer from "./seed_board_reducer";
 import SetNameReducer from "./set_name_reducer";
+import SetSecretReducer from "./set_secret_reducer";
 import UnclaimListingReducer from "./unclaim_listing_reducer";
 
 // Import all procedure arg schemas
+import * as AskScrapsProcedure from "./ask_scraps_procedure";
 
 // Import all table schema definitions
 import ClaimAttemptRow from "./claim_attempt_table";
@@ -106,11 +108,13 @@ const reducersSchema = __reducers(
   __reducerSchema("reset_board", ResetBoardReducer),
   __reducerSchema("seed_board", SeedBoardReducer),
   __reducerSchema("set_name", SetNameReducer),
+  __reducerSchema("set_secret", SetSecretReducer),
   __reducerSchema("unclaim_listing", UnclaimListingReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("ask_scraps", AskScrapsProcedure.params, AskScrapsProcedure.returnType),
 );
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {

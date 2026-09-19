@@ -3,10 +3,9 @@
 > ## STATUS — read this before anything else
 >
 > **`main` is the demo build and it is green.** Five tables, one view, eleven
-> reducers, two procedures. 32 client tests pass, typecheck and production
-> build clean, the race proven on two laptops and at the CLI. The branch below
-> takes that to seven tables, fifteen reducers, four procedures and 43 tests —
-> once it is published.
+> reducers, one procedure (`ask_scraps`), and the Ask panel. The branch below
+> merges cleanly on top and takes that to seven tables, fifteen reducers, three
+> procedures and 43 tests — once it is published.
 >
 > **A known-good fallback exists: the `demo-v1` branch.** It points at the last
 > verified-working commit before the Phase 5 schema work. **Do not delete or
@@ -262,54 +261,61 @@ try/catch. Per-viewer convenience only — never shared, never read back by us.
 
 ---
 
-### 2. AI recommender — PLANNED, NOT BUILT
+### 2. AI recommender — SHIPPED and verified against Maincloud
 
-**What a volunteer should be able to ask**, in their own words:
+**`ask_scraps` is a `#[procedure]`: the database itself calls the model.** Not a
+React component calling an API next to the database — the database, holding a
+transaction open just long enough to read the board, closing it, then making an
+outbound HTTPS request.
 
-> "What are you in the mood for?" → *"something sweet"* → the model picks from
-> the pickups actually on the board and says why.
->
-> "Where's the nearest bagel pickup?" → it knows both the listings *and* where
-> the volunteer's pin is.
+Verified live:
 
-**The distinctive version: run it as a SpacetimeDB `#[procedure]`.**
+```
+$ spacetime call -- food-pickup ask_scraps '"something sweet"' '39.2904' '-76.6122'
+["Hampden Coffee Collective has pastries.", 12291, false]
 
-Procedures exist precisely for side effects — outbound HTTP lives on
-`ctx.http` — and unlike RLS they are **not** behind the crate's `unstable`
-feature. So the database itself can call the model. Almost nobody at a hackathon
-will do that; a React component calling an API is the most-seen feature there is.
+$ spacetime call -- food-pickup ask_scraps '"what is closest to me right now"' ...
+["The closest is Ekiben, right where you are.", 16386, false]
 
-Shape:
-
-```rust
-#[procedure]
-pub fn ask_scraps(ctx: &mut ProcedureContext, question: String,
-                  lat: f64, lng: f64) -> Suggestion
+$ spacetime call -- food-pickup ask_scraps '"anything that expires soon"' ...
+["Ekiben has only 48 min left, closest by far.", 16386, false]
 ```
 
-1. Read the open listings inside a short `ctx.with_tx(...)`
-2. **Close the transaction, then** call Grok — the guidance is explicit that
-   network I/O happens before opening a transaction, not inside one
-3. Return the model's answer plus the `listing_id` it picked, so the client can
-   select that pin on the map
+Different questions pick different pickups — it is reasoning over the board, not
+keyword matching.
 
-#### Blocking unknown: where the API key lives
+**Why this is the interesting half.** Reducers must be deterministic: no network,
+no clock, no filesystem. That is not a limitation to work around, it is the same
+all-or-nothing property that makes two simultaneous claims resolve to exactly one
+winner. A reducer that could call an API could not offer that guarantee.
+Procedures exist for precisely the work reducers must refuse — so the honest
+framing is *"we could not put it in the write path, and here is the mechanism the
+database gives you instead."*
 
-`listing`, `user` and `claim_attempt` are all `public`, which means genuinely
-world-readable — a key in any of them is extractable by anyone who connects.
-A key in the client bundle is worse. **Resolve this before writing the feature:**
-find whether SpacetimeDB 2.10.1 offers a module-level setting or secret store
-that is not a public table. If it does not, the runtime version is off, and the
-answer is V's build-time `tools/generate-listings.mjs` approach, which already
-gives us the xAI story with no key shipped anywhere.
+**Grounding.** The model receives every open unclaimed pickup with its distance
+from the volunteer's pin and minutes remaining. A returned `listing_id` is
+discarded unless it appears in the context we supplied, so it cannot point at a
+listing it invented.
 
-#### Other risks, and the mitigations
+**Injection.** `serde_json` builds the request body. `donor` and `description`
+are free-form input from anonymous clients; hand-rolling that JSON string would
+let a description full of quotes and braces restructure the request.
 
-| Risk | Mitigation |
-|---|---|
-| xAI slow or down mid-demo | Client-side timeout, graceful "couldn't reach the model" copy. The feature is collapsed by default so a failure never breaks the board. |
-| Procedures are newer ground (`TODO(procedure-async)` in the crate) | Spike it in isolation first. Nothing touches the published module until a hello-world procedure returns a value to the client. |
-| A judge asks whether the AI is load-bearing | It is not, and say so. The contested claim is the argument; this is a convenience on top. |
+**Secrets.** Key and model name live in the private `secret` table — no `public`,
+so codegen skips it and no client can read it. Nothing ships in the bundle.
+
+**The model id is configurable without a republish:**
+
+```bash
+spacetime call food-pickup set_secret '"xai_model"' '"grok-3"'
+```
+
+#### Two fixes after the first live run
+
+- The model wrote `id=12291` into the prose. Ids are for the app, not the
+  reader; the prompt now forbids it and says to name the donor instead.
+- A listing posted at the default pin rendered as `0.0 mi away`, which reads
+  like a bug. Anything under a tenth of a mile is now "right where you are".
 
 #### Stop rule
 
@@ -1343,10 +1349,11 @@ rehearsal is much better than finding out during one.
    Maincloud is shared infrastructure, so a 429 is possible. Either way it
    fails to a sentence and the pin drop still works. **Do not put the address
    lookup on the demo critical path** — set the profile up beforehand.
-3. **Is a procedure's generated parameter shape a single object?** The client
-   calls `geocode({ address })` the way reducers take one params object. If
-   codegen emits positional parameters instead, `tsc` says so immediately and
-   it is a one-line fix at each of the two call sites.
+3. ~~**Is a procedure's generated parameter shape a single object?**~~
+   **Settled.** `AskPanel.tsx` calls `askScraps({ question, lat, lng })` against
+   E's regenerated bindings, so procedures take one params object exactly the
+   way reducers do. `geocode({ address })` and
+   `suggest_description({ donor, note })` are the right shape.
 
 ## Things worth knowing before demoing this
 
@@ -1360,3 +1367,40 @@ rehearsal is much better than finding out during one.
   worth showing in DevTools next to the "one websocket, no polling" point.
 - **The claim ceiling still bites at three.** Unrelated, but it is the thing
   that surprised V last time.
+
+---
+
+## Merging Phase 7 with Ask Scraps — done, and what it cost
+
+`origin/main` was merged into `claude/elegant-archimedes-vqqdy1` after E landed
+`ask_scraps`. It is clean now, but not because git said so.
+
+**Git reported one conflict (`Cargo.toml`) and it was the harmless one** — we
+had both added `serde_json`, differing only in the comment above it.
+
+**`lib.rs` auto-merged and did not compile.** We had each written a struct
+called `Suggestion`: E's is `{ answer, listing_id, failed }` for the assistant,
+mine was `{ ok, text, error }` for the description drafter. The two definitions
+sit hundreds of lines apart, so there was no textual overlap for git to notice
+— it produced a file with the name defined twice and 19 cascading errors.
+Mine is now `DescriptionDraft`, which is the better name anyway.
+
+**Worth remembering:** a clean `git merge` on a Rust module means the *text*
+did not overlap. It says nothing about whether the result compiles. Always
+`cargo check --target wasm32-unknown-unknown` after merging this file.
+
+**One thing was made consistent rather than merely compatible.**
+`suggest_description` now reads the same `xai_model` secret and the same
+`DEFAULT_MODEL` fallback that `ask_scraps` uses, instead of hardcoding a model
+name. Two AI features disagreeing about which model to call is a failure that
+only surfaces on whichever one gets demoed second.
+
+So one key and one model setting serve both:
+
+```bash
+spacetime call food-pickup set_secret '"xai_api_key"' '"xai-..."'
+spacetime call food-pickup set_secret '"xai_model"' '"grok-3"'   # optional
+```
+
+`App.tsx` merged with both sides intact: E's `AskPanel` mount and V's
+`onError` passthrough to `RestaurantView`.

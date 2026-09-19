@@ -1,0 +1,109 @@
+/* Ella's styles. Every value is an existing token from index.css (Vanessa's) —
+   this introduces no palette of its own. */
+
+.ask { display: flex; flex-direction: column; gap: 0.55rem; flex: none; }
+
+.ask__title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.ask__lead { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+.ask__row { display: flex; gap: 0.4rem; }
+
+.ask__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+}
+.ask__input::placeholder { color: var(--taken); }
+.ask__input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+
+.ask__chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+.chip {
+  padding: 0.26rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: color var(--ease), border-color var(--ease);
+}
+.chip:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+.chip:disabled { opacity: 0.45; cursor: default; }
+
+/* Amber left edge, matching an open listing — a recommendation points at one. */
+.answer {
+  margin-top: 0.15rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--open);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.answer__text { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+.answer__link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--open);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Failure is grey, not red: nothing broke, the assistant just could not answer. */
+.answer--failed { border-left-color: var(--taken); }
+.answer--failed .answer__text { color: var(--muted); }
+
+.ask__note { margin: 0; font-size: 0.72rem; color: var(--taken); line-height: 1.45; }
+
+.ask__rule { margin: 1.3rem 0 0; border: 0; border-top: 1px solid var(--line); }
+
+/* ---------------------------------------------------------------------------
+   Stacking the assistant above the listing detail.
+
+   ListingPanel renders its own <aside class="panel"> — it was written to BE the
+   right-hand column. Rather than change V's component to take an `embedded`
+   prop, the outer `.panel--stack` owns the column chrome and the inner one is
+   flattened to a plain block. Contained here, so nothing of V's moves.
+   --------------------------------------------------------------------------- */
+.panel--stack { gap: 0; }
+
+.panel--stack > .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  border-left: 0;
+  background: transparent;
+  overflow-y: auto;
+}
+
+/* The empty state centres itself, which fights the stack. Left-align it and let
+   it sit under the rule like any other content. */
+.panel--stack > .panel--empty {
+  display: block;
+  padding-top: 1.1rem;
+  text-align: left;
+}

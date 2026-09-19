@@ -6,5 +6,8 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
+import * as AskScrapsProcedure from "../ask_scraps_procedure";
 
+export type AskScrapsArgs = __Infer<typeof AskScrapsProcedure.params>;
+export type AskScrapsResult = __Infer<typeof AskScrapsProcedure.returnType>;
 
