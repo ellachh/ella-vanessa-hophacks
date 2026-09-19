@@ -6,6 +6,21 @@ cannot ask us a question, which is the opposite of the demo.
 **Before submitting:** screenshots of the board with 15 listings, the rejection
 toast mid-race, and the two-laptop setup. Repo link. Track: SpacetimeDB.
 
+**Lead with `docs/race.png`.** It is the technical argument in one picture, and
+a Devpost reader cannot ask us a question — so the thing we would say out loud
+has to be visible before they scroll. Upload it as the first image, above the
+screenshots.
+
+---
+
+![Two volunteers tap Claim on the same listing at the same instant. SpacetimeDB
+runs the two reducer calls as serialized transactions: the first reads
+claimed_by as empty and commits, the second reads it as already set and aborts.
+One volunteer gets the pickup; the other is told who beat her.](race.png)
+
+*Two taps, one instant, one winner — and no locking code anywhere in the
+project.*
+
 ---
 
 ## Inspiration
@@ -27,6 +42,12 @@ volunteer's screen updates instantly — no refresh, no polling.
 
 When two volunteers tap Claim on the same pickup in the same instant, exactly
 one wins. The other is told who beat them.
+
+That is easy to assert and hard to believe, so the app can prove it on demand:
+a button fires **50 concurrent claims** at one listing and reports the tally.
+Against the live database it comes back **1 succeeded, 49 rejected, 85ms** —
+no double-claim, no lost write, and no locking code on our side. A judge can
+press it themselves.
 
 Unclaimed listings whose pickup window passes delete themselves, on a timer
 inside the database, with no client involved.
