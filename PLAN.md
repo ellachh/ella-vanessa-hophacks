@@ -893,6 +893,75 @@ for. Finishing beats adding, every time, from here to submission.
 
 ---
 
+## Feature requests raised late — all three declined, with reasons
+
+V asked for three additions after the build was verified. Recording them here
+because they are good product ideas that we are choosing not to build, and the
+reasoning is worth more than the features would have been.
+
+### 1. Restaurant role with a verification layer — **cannot be done honestly**
+
+This one is a different kind of no from the other two. We have no email, no
+phone, no identity provider and no business registry. Identities are anonymous
+tokens in `localStorage`. A "verification layer" would be a checkbox reading
+*I am a restaurant* that anyone can tick.
+
+And per trap #8, row-level security does not work on 2.10.1, so we could not
+restrict who sees what even if we wanted to. Every table is genuinely
+world-readable.
+
+So a judge asks how we verify a restaurant and the honest answer is "we do
+not" — after we put a control in the UI implying we do. That is a worse moment
+than not having the feature, in front of the people who wrote the database.
+**Do not ship a control we cannot back.**
+
+### 2. History of past pickups — buildable, but invasive right now
+
+`completed` listings still exist in the database. But the subscription is now
+scoped server-side to open listings within a radius, so completed rows are no
+longer *sent to the client*. History needs a second subscription — which
+changes the exact thing verified against Maincloud in the pass before it.
+
+Cheapest of the three if we ever do one. Not before submission.
+
+### 3. Pinned / favourite restaurants — a fifth table for no new depth
+
+Needs a table, a reducer and UI. It would not demonstrate SpacetimeDB more
+than what we already have: four tables, an event table, a scheduled reducer, a
+server-side view, a transaction-enforced ceiling and scoped subscriptions.
+
+### Where the value goes instead
+
+All three belong in the Devpost's **"What's next"** section. Judges read it, and
+it is where product thinking scores without shipping anything half-built.
+Written properly, *"verification needs a real identity provider, and here is why
+we did not fake one"* reads as judgment. A checkbox reads as a gap.
+
+### The rule this is an instance of
+
+From CLAUDE.md, and it holds for anything either of us is tempted by from here:
+
+> A half-built feature is worse than a missing one. Finishing beats adding,
+> every time, from here to submission.
+
+**The state as of this note: 15 hours in, the build is done and verified, and
+we have not submitted.** That is the only outstanding risk. Nothing on this
+page is worth more than closing it.
+
+---
+
+## Screenshots — regenerated after the rename
+
+The earlier set all said *Relay* and are stale. Regenerated at 2x, tab title
+confirmed on each: board, race toast, stress-test result, your pickups, post
+form, name gate. Ella's radius filter is in the frame.
+
+They are rendered against stub rows with placeholder map tiles, because the web
+sandbox cannot reach OpenStreetMap or Maincloud. **For the Devpost, reshoot on a
+laptop** so the tiles are real streets — everything else is identical.
+
+---
+
 ## Phase 4 — Integration and demo (hours 20–32)
 
 - [x] **E+V** Two-laptop testing against the **same** module instance
