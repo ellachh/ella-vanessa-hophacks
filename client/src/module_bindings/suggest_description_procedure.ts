@@ -17,5 +17,6 @@ import {
 export const params = {
   donor: __t.string(),
   note: __t.string(),
+  photo: __t.string(),
 };
 export const returnType = DescriptionDraft
