@@ -12,15 +12,21 @@
 > (It is a branch rather than a tag because annotated tag pushes fail through
 > the web sandbox's proxy. Either of us can add a real tag from a laptop.)
 >
-> **BLOCKING: we have not submitted anything.** Phase 4 items 4-7 are open, and
-> item 7 is *Submit*. Our own risk register says a late perfect build scores
-> zero. Phase 5 is a deliberate schema unfreeze taking us from two tables to
-> four — the riskiest work of the weekend — and right now there is nothing
-> submitted underneath it.
+> **Roughly 22 hours left. Not tight — Phase 5 fits comfortably.** Sketch:
 >
-> **Submit the current build to Devpost before starting Phase 5.** Entries can
-> be updated until the deadline. This is the one thing that converts "we might
-> place" into something real.
+> | Window | Work |
+> |---|---|
+> | next ~6h | Phase 5: E's schema pass, V's stress test and scoped subscriptions |
+> | +6 → +10 | V's drawings, the contention ticker, integration |
+> | +10 → +14 | Re-test everything, two-laptop rehearsal |
+> | +14 → +18 | Devpost writeup, screenshots, submit |
+> | +18 → +22 | Buffer and more rehearsal |
+>
+> **Nothing is submitted yet.** Not urgent at this range, but a Devpost entry
+> can be edited until the deadline, so putting a stub up costs nothing and
+> removes the one failure mode that cannot be recovered from: having a working
+> build and no submission because the last two hours went to debugging. Do it
+> whenever convenient, not necessarily first.
 >
 > Phase 5 plans, ownership and both per-person briefs live in `PROMPTS.md`.
 
@@ -609,7 +615,8 @@ comment on it saying not to interpolate text there.
 - [ ] **V** Final visual pass
 - [ ] **E** Demo script written out and rehearsed at least three times
 - [ ] **E+V** Devpost writeup — screenshots, the technical argument, repo link
-- [ ] **E+V** Submit. **STILL OPEN — do this before Phase 5, not after.**
+- [ ] **E+V** Submit. Still open. A stub entry is free and editable — put one up
+      whenever convenient rather than saving it all for the end.
 
 ### Demo ownership
 
