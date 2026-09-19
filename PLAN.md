@@ -316,6 +316,40 @@ autocomplete** — `reducers.claimListing` vs `reducers.claim_listing` — rathe
 than trusting either of our guesses. It is a one-second check in the editor and
 neither session can verify it without the package installed.
 
+### Reducers now return `Result<(), String>` — failures are legible
+
+All five reducers return an error message instead of silently no-oping. The
+client receives these through the reducer event context.
+
+`claim_listing` errors:
+
+| Case | Message |
+|---|---|
+| Lost the race | `someone else claimed this first` |
+| Already delivered | `that pickup is already complete` |
+| Row gone | `listing <id> no longer exists` |
+
+`unclaim_listing` / `complete_listing` add `you do not hold this claim`.
+
+**This is a demo upgrade, not just error handling.** Previously the loser of a
+contested claim just watched the row grey out, which is ambiguous — it looks
+identical to a UI glitch. Now the loser gets a message naming what happened.
+Surface it as a toast on the claim button: that is the moment the judges are
+being asked to understand, and it should be explicit.
+
+Returning `Err` also aborts the transaction, so a losing claimant writes nothing.
+
+`post_listing` validates before inserting: non-empty trimmed strings within
+length caps, and finite coordinates inside real lat/lng ranges. V flagged that a
+NaN coordinate would break every client's map, since everyone subscribes to
+every row — that is now rejected at the reducer. Client-side filtering is still
+worth keeping as defense in depth, but no bad row can be stored in the first
+place.
+
+**Still render from the subscription, never optimistically.** The `Result` tells
+you a call failed; the row is still the only source of truth for what the board
+looks like.
+
 **An open listing has `claimedBy` absent/undefined, not `null`.** Test with
 `claimedBy === undefined` or a falsy check, not `=== null`.
 
