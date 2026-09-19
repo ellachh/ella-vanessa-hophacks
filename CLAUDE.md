@@ -161,6 +161,33 @@ dependencies. The real surface is the data model, and it rests on three things:
    public board and fine for the demo; worth saying out loud if a judge asks
    what you would change for production.
 
+### Accounts and login — asked again, still no
+
+Revisited in Phase 5 and the cut stands. The reasoning, because it is also the
+answer to give a judge:
+
+**We already have authentication.** SpacetimeDB issues every client a
+cryptographic `Identity`, and `ctx.sender` is the authenticated principal that a
+client cannot forge. That is not a placeholder for real auth — it is real auth,
+just anonymous. Our entire authorization model rests on it.
+
+**A login demonstrates nothing distinctive.** SpacetimeDB does support OIDC
+(SpacetimeAuth, Auth0, Clerk, Google, GitHub), so wiring it up would technically
+be "using a feature" — but every backend has that feature. The client visibility
+filter is the same territory done in a way that actually shows off the product:
+row-level security enforced by the database rather than by the client choosing
+not to render something.
+
+**It would make the demo worse.** The pitch is ten seconds — two laptops, both
+tap, one wins. "Now we both sign up" is friction in front of the thing being
+judged. `NameGate` already solves the only real problem, which is that the board
+needs a human-readable name.
+
+**Known rough edge, and it is not solved by accounts:** identity lives in a
+`localStorage` token. Clear site data or use a fresh incognito window and you are
+a different volunteer, with no name and no claims. Fine for a demo; do not clear
+storage between rehearsals.
+
 **Client-side, one concrete trap:** Leaflet's `bindPopup()` takes an HTML string
 and does not escape it. Listing text is free-form input from any anonymous
 client, so building popups that way is stored XSS. Use react-leaflet's `<Popup>`

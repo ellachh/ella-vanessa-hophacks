@@ -1,5 +1,29 @@
 # PLAN.md — Task breakdown and ownership
 
+> ## STATUS — read this before anything else
+>
+> **The core loop is DONE and works.** Four screens, two tables, five reducers,
+> the race proven both at the CLI and through the UI on two identities. 24
+> client tests green, typecheck and production build clean.
+>
+> **A known-good fallback exists: the `demo-v1` branch.** It points at the last
+> verified-working commit before the Phase 5 schema work. If Phase 5 goes wrong,
+> `git checkout demo-v1` is the way back. **Do not delete or force-push it.**
+> (It is a branch rather than a tag because annotated tag pushes fail through
+> the web sandbox's proxy. Either of us can add a real tag from a laptop.)
+>
+> **BLOCKING: we have not submitted anything.** Phase 4 items 4-7 are open, and
+> item 7 is *Submit*. Our own risk register says a late perfect build scores
+> zero. Phase 5 is a deliberate schema unfreeze taking us from two tables to
+> four — the riskiest work of the weekend — and right now there is nothing
+> submitted underneath it.
+>
+> **Submit the current build to Devpost before starting Phase 5.** Entries can
+> be updated until the deadline. This is the one thing that converts "we might
+> place" into something real.
+>
+> Phase 5 plans, ownership and both per-person briefs live in `PROMPTS.md`.
+
 Companion to `CLAUDE.md` (which holds the idea, scope and data model).
 This file holds **who does what, in what order, and what blocks what**.
 
@@ -578,13 +602,14 @@ comment on it saying not to interpolate text there.
 
 ## Phase 4 — Integration and demo (hours 20–32)
 
-- [ ] **E+V** Two-laptop testing against the **same** module instance
-- [ ] **E+V** Simultaneous-claim test through the real UI, repeatedly, until reliable
+- [x] **E+V** Two-laptop testing against the **same** module instance
+- [x] **E+V** Simultaneous-claim test through the real UI — done; re-run after
+      the Phase 5 schema pass, since that changes the claim path
 - [ ] **E+V** Fix whatever that surfaces (it will surface something)
 - [ ] **V** Final visual pass
 - [ ] **E** Demo script written out and rehearsed at least three times
 - [ ] **E+V** Devpost writeup — screenshots, the technical argument, repo link
-- [ ] **E+V** Submit. Do not leave this to the last 20 minutes.
+- [ ] **E+V** Submit. **STILL OPEN — do this before Phase 5, not after.**
 
 ### Demo ownership
 
