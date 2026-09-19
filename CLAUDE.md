@@ -20,6 +20,32 @@ drives to the same pickup twice.
 
 This is our only submission. We are not entering the philanthropy track.
 
+### The stated criterion is POLISH — confirmed from the prize card
+
+> "The SpacetimeDB Prize will be awarded to the team that creates the **most
+> polished app** using SpacetimeDB."
+
+The title is *Best Use of SpacetimeDB*; the criterion sentence is *most polished
+app*. Both are live and they pull slightly differently, so hold both:
+
+- **Depth is the qualifier.** "Using SpacetimeDB" is doing real work in that
+  sentence — a beautiful app that treats it as Postgres will not win the
+  SpacetimeDB prize. Our contested-claim argument still carries the pitch.
+- **Polish is the bar.** This is not "most technically ambitious". Rough edges,
+  broken states and half-finished features count directly against us.
+
+Three consequences, and they override earlier instincts in this file:
+
+1. **A half-built feature is worse than a missing one.** Under a depth
+   criterion, an incomplete advanced feature still signals ambition. Under a
+   polish criterion it is a visible defect. This settles the Phase 5 question:
+   do items in priority order and *stop when the next one cannot be finished
+   properly*. Do not commit to a list.
+2. **Visual work is not garnish.** V's hand-drawn assets, the empty/loading/
+   connection-lost states, and the final visual pass are scoring surface, not
+   nice-to-haves.
+3. **Finishing beats adding**, every time, from here to submission.
+
 Reasoning: SpacetimeDB is a genuinely niche track — the barrier to entry is real
 (unfamiliar database, backend modules in Rust), so few teams will attempt it, and
 it has three prize slots instead of one. Every design decision in this file should
