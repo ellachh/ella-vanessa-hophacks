@@ -386,6 +386,10 @@ All genuinely interesting client work happens in TypeScript.
    being `public` means genuinely world-readable; never put anything sensitive
    in them.**
 9. **Adding a column to a table that already exists needs `#[default(...)]`.**
+   *(Relevant right now: a photo feature adding `photo_url` to `listing` will
+   hit this. A `String` column with `#[default("")]` migrates fine — the
+   restriction is on primary-key, unique and auto-increment columns. Without the
+   annotation the publish is refused outright.)*
    Publishing fails with *"Adding a column X to table Y requires a default value
    annotation"*, and the only way past it is `--delete-data`, which wipes
    everything. There is no meaningful default for an `Identity`, so a column of

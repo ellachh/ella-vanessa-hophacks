@@ -3,6 +3,7 @@ import { useProcedure } from 'spacetimedb/react'
 
 import { procedures } from './module_bindings'
 import type { LatLng } from './radius'
+import './PostForm.css'
 import './AskPanel.css'
 
 /** Typing on stage is slow. These cover the demo; the input covers everything else. */
@@ -33,6 +34,7 @@ export default function AskPanel({
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [busy, setBusy] = useState(false)
+  const [wide, setWide] = useState(false)
 
   async function ask(text: string) {
     const q = text.trim()
@@ -59,9 +61,19 @@ export default function AskPanel({
     }
   }
 
-  return (
-    <section className="ask">
-      <h2 className="ask__title">Ask Scraps</h2>
+  const body = (
+    <section className={`ask${wide ? ' ask--wide' : ''}`}>
+      <div className="ask__head">
+        <h2 className="ask__title">Ask Scraps</h2>
+        <button
+          type="button"
+          className="ask__expand"
+          onClick={() => setWide((v) => !v)}
+          aria-expanded={wide}
+        >
+          {wide ? 'Close' : 'Expand'}
+        </button>
+      </div>
       <p className="ask__lead">What are you in the mood for?</p>
 
       <form
@@ -122,4 +134,23 @@ export default function AskPanel({
       </p>
     </section>
   )
+
+  // Expanded, the same component renders inside PostForm's modal shell. The
+  // backdrop closes it, so there is no way to get stuck in the wide view.
+  if (wide) {
+    return (
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ask Scraps"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setWide(false)
+        }}
+      >
+        {body}
+      </div>
+    )
+  }
+  return body
 }
