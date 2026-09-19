@@ -98,8 +98,10 @@ export default function DonorProfileForm({
       // Separate table, separate reducer. Only written when it changed: a
       // no-op rewrite would still replicate to everyone subscribed to it.
       if (photo !== existingPhoto) {
+        // `remove_donor_photo` takes no arguments — it acts on ctx.sender()
+        // and nothing else — so the generated handle takes none either.
         if (photo) await savePhoto({ dataUri: photo })
-        else await removePhoto({})
+        else await removePhoto()
       }
       onClose()
     } catch (err) {
