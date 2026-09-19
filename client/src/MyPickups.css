@@ -1,0 +1,55 @@
+/* Ella's styles for MyPickups. Kept out of index.css, which is Vanessa's. */
+
+.mine { display: flex; flex-direction: column; min-height: 0; }
+
+.mine__title { margin: 0 0 0.75rem; font-size: 1rem; }
+
+.mine__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mine__item {
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.mine__jump {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mine__jump:hover .mine__donor { text-decoration: underline; }
+
+.mine__donor { font-weight: 600; }
+
+.mine__when { font-size: 0.78rem; white-space: nowrap; }
+.mine__when--ok { color: var(--muted); }
+.mine__when--soon { color: #f5a524; }
+.mine__when--overdue { color: #f87171; }
+
+.mine__desc {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.mine__actions { display: flex; gap: 0.4rem; }
+.mine__actions .btn { flex: 1 1 auto; font-size: 0.85rem; }

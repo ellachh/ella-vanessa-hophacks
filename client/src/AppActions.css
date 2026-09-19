@@ -1,0 +1,15 @@
+/* Ella's styles for the header controls added in Phase 3. */
+
+.app__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+  align-items: center;
+}
+
+.app__actions .btn { font-size: 0.85rem; padding: 0.4rem 0.75rem; }
+
+.app__actions .btn--on {
+  border-color: #4a5468;
+  background: #222836;
+}
