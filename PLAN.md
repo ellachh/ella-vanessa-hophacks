@@ -431,13 +431,12 @@ spacetime call -- food-pickup post_listing '"Donor"' '"desc"' \
 - [x] `complete_listing` — only if `claimed_by == ctx.sender`
 - [x] *Beyond the list:* all five validate input and return `Result<(), String>`;
       the error strings are demo copy (see the agreed wording above)
-- [~] Test every reducer from the CLI — **PARTIAL.** `post_listing` is covered
+- [x] Test every reducer from the CLI — all five exercised directly.
+- [~] *(superseded)* Earlier partial note: `post_listing` is covered
       (the seed run, plus the `999 999` rejection confirming validation is
       deployed). `set_name`, `claim_listing`, `unclaim_listing` and
       `complete_listing` have only been exercised through the UI.
-- [ ] **Prove the race.** Fire two `claim_listing` calls at the same listing as
-      fast as possible and confirm exactly one wins. Save the terminal output —
-      this is demo evidence. **STILL OPEN — the last real item in Phase 2.**
+- [x] **Prove the race.** Done — transcript recorded below.
 - [x] Write a seed script — `server/seed.sh`, 15 Baltimore listings, run and
       verified in `spacetime sql`
 - [ ] Learn `spacetime logs` for debugging
@@ -464,6 +463,54 @@ stop and re-read the client SDK docs — you have misunderstood the database.
 **The two-laptop simultaneous-claim test passed.** Two browsers, one Maincloud
 module, both tapped the same listing; one won, the other got the rejection
 message. That is the project's central claim, demonstrated end to end.
+
+### Race proof — CLI transcript (demo evidence)
+
+Two `claim_listing` calls launched from one shell line, so both are in flight
+before either returns:
+
+```
+$ spacetime call -- food-pickup claim_listing 30 & \
+  spacetime call -- food-pickup claim_listing 30 & wait
+[1] 60949
+[2] 60950
+WARNING: This command is UNSTABLE...WARNING: This command is UNSTABLE...
+
+[1]  - done       spacetime call -- food-pickup claim_listing 30
+Error: Response text: Ella CLI claimed this first.
+[2]  + exit 1     spacetime call -- food-pickup claim_listing 30
+```
+
+What makes this concurrent rather than sequential: both PIDs are assigned before
+either process exits, and the two warning lines interleave on one line. One
+process exits 0, the other exits 1.
+
+**It must be one shell line.** Running the two calls as separate commands lets
+the first finish before the second starts, which only tests the guard, not
+contention.
+
+Row state afterward confirms a single holder:
+
+```
+ id | claimed_by
+----+------------------------------------------------------------
+ 30 | (some = (__identity__ = 0xc200af83...))
+```
+
+Also note the message names the winner — `claim_listing` looked up the `user`
+row, the same path that prints a teammate's name in the live demo.
+
+### Guard proof — authorization rejects
+
+```
+$ spacetime call -- food-pickup unclaim_listing 29     # succeeds, claimed_by -> None
+$ spacetime call -- food-pickup complete_listing 29
+Error: Response text: You don't hold this claim.
+```
+
+`complete_listing` refuses because `claimed_by != Some(ctx.sender())`. Same check
+rejects completing a listing held by someone else — worth demonstrating that way
+too, with V holding the claim in her browser.
 
 ---
 
