@@ -726,6 +726,96 @@ comment on it saying not to interpolate text there.
 
 ---
 
+## Where we actually are — verified, not assumed
+
+Everything below was checked by running it, not inferred from commit messages.
+
+| Check | Result |
+|---|---|
+| Rust module compiles | ✅ `cargo check` clean, 431 lines |
+| TypeScript typecheck | ✅ clean |
+| Client tests | ✅ 24 passing |
+| Production build | ✅ clean |
+| No unescaped HTML paths | ✅ only the two `divIcon` html strings, both static markup |
+| No data fetching | ✅ no fetch, axios, useQuery, setInterval, or store |
+| No reducer takes an `Identity` argument | ✅ `display_name` and `open_claims` take one but are **private helpers**, not reducers — fine |
+| No secrets, no leftover scratch files | ✅ |
+
+**Phase position: Phases 0–3 complete. Phase 4 complete except the visual pass,
+the writeup and submission. Phase 5 in progress.**
+
+Shipped in Phase 5 so far: the scheduled expiry ticker, `seed_board` as its own
+callable reducer, the `claim_attempt` event table, the contention stress test,
+and `docs/why-spacetimedb.html`.
+
+### One thing is out of sync and it blocks V
+
+**The server has `claim_attempt` and `expiry_tick`; the generated bindings do
+not.** `client/src/module_bindings/` still contains only `user` and `listing`.
+The client compiles because it is internally consistent — it simply cannot see
+the new tables.
+
+So the contention ticker cannot be built yet. It needs one
+`spacetime generate` (and a publish, if the module has not been republished
+since the event table landed). This is the single blocking item between the two
+of us.
+
+## Task breakdown from here
+
+No fixed clock times — the ordering and the stop rule are what matter.
+
+### E — backend, then stop
+
+1. **Republish and regenerate.** Unblocks V's ticker. Do this before starting
+   anything new. Announce it.
+2. **Verify the losing claim's event row survives.** `claim_listing` returns
+   `Err` on the losing path, which aborts the transaction — the
+   `claim_attempt` insert is inside it and may roll back. The code already
+   carries a note saying to check. Whatever the answer, write it into this
+   file; "we found the transaction boundary the hard way" is a good answer to
+   "what surprised you".
+3. **`pickup_contact` + `#[client_visibility_filter]`** — the last schema item.
+   Moving donor address and phone out of `listing` is a *field removal* and
+   breaks V's client, so flag it as that, not as "schema changed".
+4. **Per-user `my_pickups` view**, if the rest landed comfortably.
+5. **Demo script written out and rehearsed.** Phase 4, still open, and E gives
+   the technical pitch.
+
+### V — client, then polish
+
+1. **Drawings — start now, blocks on nobody.** Race diagram first (it leads the
+   Devpost), then custom map pins as SVG, then a wordmark, then an empty-state
+   illustration.
+2. **Contention ticker** — waits on E's regenerate. Event-table rows are never
+   stored client-side, so it must be driven by `useTable`'s `onInsert`, not by
+   reading rows. Cap the display: the stress test fires 50 claims, so a run
+   produces a burst of 50 events.
+3. **Wire `openListings`** — `queries.ts` is ready; the swap is one line in
+   `App.tsx`, which is E's file.
+4. **Adapt to the contact-field removal** when item 3 of E's list lands.
+5. **Final visual pass** — Phase 4, still open.
+
+### E+V together
+
+- Re-run the two-laptop simultaneous claim after the schema pass. It changes the
+  claim path, so the earlier test no longer covers it.
+- Run the stress test on a real laptop. It has never been fired against a live
+  database; the sandbox cannot reach Maincloud.
+- Devpost writeup and submit.
+
+## The rule that governs the rest of this build
+
+The prize criterion is **most polished app**. That inverts how unfinished work
+scores: under a depth criterion a half-built feature still reads as ambition;
+under a polish criterion it is a visible defect.
+
+So: **work in priority order and stop when the next item cannot be finished
+properly.** Nothing here is a list to complete. Anything still half-built when
+we move to polish gets **reverted**, not shipped — that is what `demo-v1` is
+for. Finishing beats adding, every time, from here to submission.
+
+---
+
 ## Phase 4 — Integration and demo (hours 20–32)
 
 - [x] **E+V** Two-laptop testing against the **same** module instance
