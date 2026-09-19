@@ -274,6 +274,100 @@ happen in parallel.
 | Before E starts Phase 3 | V → E | "ConnectionGate is pushed, `App.tsx` is yours, pull now." |
 | Either of us pushes | → other | Say so. The other person's checkout is a separate machine and does not update by itself. |
 
+---
+
+# PHASE 5 (STRETCH) — only now that the core loop is closed
+
+All four screens exist: post, map, claim, my pickups. That was the gate. Nothing
+below starts until the loop is demoed end to end on two laptops.
+
+## The filter for every idea here
+
+**Flash that demonstrates SpacetimeDB counts double. Flash that does not is a
+trap.** These are Clockwork's own judges. Map clustering, tile styling and
+animation look like progress and prove nothing to them. Depth in the database
+is the currency.
+
+Second filter: **each item must be independently demoable.** Stop whenever it
+stops being comfortable. Being mid-feature at submission is worse than shipping
+three tight things.
+
+## Ranked
+
+### Tier 1 — highest value, low risk
+
+**1. Scheduled reducers — auto-expiring listings.** CLAUDE.md already names this
+as the one cut feature worth adding back when ahead.
+
+> Demo: "Nobody touch anything." A pin vanishes from both laptops at once
+> because its pickup window passed. **The database called our code on a timer
+> with no client involved.**
+
+A second technical claim alongside the race, and one most teams will never
+touch. Also fixes a real wart — expired listings currently sit there reading
+"Past pickup time". ~20 lines of Rust (a scheduled table plus one reducer).
+**E** writes it, **V** does the expiry treatment in the UI.
+
+**2. Presence — who is online.** `client_connected` / `client_disconnected` are
+first-class lifecycle reducers. A bool on the existing `user` table; no third
+table needed.
+
+> Demo: "2 volunteers online" in the header. Ella shuts her laptop, it drops to
+> 1, live.
+
+Shows we understand the connection lifecycle, not just tables and reducers.
+**E** writes it, **V** does the indicator.
+
+### Tier 2 — the real flex, if Tier 1 lands comfortably
+
+**3. Presence on the listing itself — "Ella is looking at this".**
+
+> Demo: both of us open the same pin. Before either taps claim, each screen
+> already shows the other person is there. Then we race. **The collision is
+> visible before the click.**
+
+This is the MMO use case in miniature, which is what Clockwork built
+SpacetimeDB for, and it makes the race demo dramatically better because the
+audience sees it coming.
+
+**Costs a third table**, which CLAUDE.md explicitly says to resist. That rule
+exists for good reasons and this is the one candidate that might earn breaking
+it — but it is a decision both of us make out loud, not a thing one session
+does quietly.
+
+### Do not build
+
+- Anything else on CLAUDE.md's cut list. It is blunt that nothing else there is
+  on-track, and that is right: multi-leg handoffs and the miss heatmap are more
+  *product*, not more *SpacetimeDB*.
+- Map eye-candy — clustering, custom tiles, animated fly-to. Zero signal here.
+- Anything that cannot be finished and demoed in one sitting.
+
+## V's visual track (runs in parallel, no backend dependency)
+
+Hand-drawn assets are worth real points and block on nobody. In rough order of
+value:
+
+**1. The race diagram — highest value of anything in this file.** A drawing of
+two clients hitting one reducer, one winning, one getting the rejection.
+Judges read a lot of Devposts; a hand-drawn diagram of the actual technical
+argument is memorable in a way a screenshot is not. This goes at the top of the
+Devpost and can be a slide.
+
+**2. Custom map pins.** Drawn markers instead of coloured circles — a box or
+loaf for an open pickup, something visibly different once claimed. Drop them in
+as SVG via the existing `divIcon` in `MapView.tsx`. Keep open-vs-claimed
+obviously distinct at a glance; watching a pin change is still the demo.
+
+**3. A Relay wordmark.** Cheap, and makes the header read as a product rather
+than a project.
+
+**4. Empty-state illustration.** Nice, low value. Last.
+
+**Rule for pins:** images go through the `divIcon` html string, which is NOT
+escaped. Only ever put our own static markup there — never a donor name or
+description. See the comment on `pin()` and CLAUDE.md, Security.
+
 ## Merge cadence
 
 Both on `main` for phases 0–2, `git pull --rebase origin main` before every push,
