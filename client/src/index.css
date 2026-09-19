@@ -1,76 +1,83 @@
 /* Leaflet's own stylesheet must be imported before ours so our rules win.
    Without it the map renders as a grey box — see CLAUDE.md, Known Traps. */
 @import 'leaflet/dist/leaflet.css';
+/* Display face. If it fails to load, the fallback stack is a serif too, so the
+   layout holds — only the character changes. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
+/* ===========================================================================
+   Warm paper theme. The map tiles are warm and light; the chrome used to be
+   near-black, which read as two unrelated surfaces bolted together. Matching
+   the chrome to the map makes the whole thing one object, and it is the map
+   that carries the product.
+   =========================================================================== */
 :root {
-  --bg: #12151a;
-  --panel: #1b2029;
-  --line: #2b3240;
-  --text: #e8ecf2;
-  --muted: #94a0b4;
+  --bg: #efebe2;          /* warm cream */
+  --panel: #f7f4ed;       /* paper */
+  --surface: #fbf9f4;     /* raised cards */
+  --line: #ddd5c6;        /* hairline */
+  --line-soft: #e9e2d5;
+  --text: #17140f;        /* warm near-black */
+  --muted: #6f675c;       /* warm grey */
+  --ink: #17140f;         /* primary action */
+  --ink-hover: #322c24;
+
+  /* Listing states. Semantic, so they stay distinct from the UI palette.
+     Open → taken is the transition the whole demo turns on. */
+  --open: #c9741a;
+  --mine: #2f6b4b;
+  --taken: #a49c90;
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --ease: 160ms ease;
+
+  --display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);
+  -webkit-font-smoothing: antialiased;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
+/* ---------- shell ---------- */
+.app { display: flex; flex-direction: column; height: 100%; }
 
 .app__header {
   display: flex;
   align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.75rem 1.25rem;
+  gap: 0.85rem;
+  padding: 0.7rem 1.4rem;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   flex: none;
 }
-
 .app__title {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-family: var(--display);
+  font-size: 1.7rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.app__tagline { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.app__count {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.app__tagline {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
+.app__body { flex: 1 1 auto; min-height: 0; display: flex; }
+.app__map { flex: 1 1 auto; min-height: 0; }
 
 /* The map only appears if its container has a resolved height.
    A percentage height here would collapse to zero, so we use flex. */
-.app__map {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.map {
-  height: 100%;
-  width: 100%;
-  background: var(--bg);
-}
-
-/* ---------- layout ---------- */
-.app__body { flex: 1 1 auto; min-height: 0; display: flex; }
-.app__map { flex: 1 1 auto; min-height: 0; }
-.app__count { margin-left: auto; font-size: 0.85rem; color: var(--muted); }
+.map-wrap { position: relative; height: 100%; width: 100%; }
+.map { height: 100%; width: 100%; background: var(--bg); }
 
 /* ---------- map pins ----------
    SVG teardrops from pins.ts. `color` drives currentColor in the artwork, so
@@ -78,70 +85,146 @@ body,
    amber to a hollow grey outline in real time is the demo. */
 .pin {
   display: block;
+  /* The ring below is absolutely positioned against this. */
+  position: relative;
   width: 22px;
   height: 30px;
   /* Scale from the tip, so a selected pin grows without its point drifting
      off the location it marks. */
   transform-origin: 50% 100%;
   transition: color 280ms ease, opacity 280ms ease, transform 160ms ease;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 1px 2px rgba(40, 30, 15, 0.3));
 }
 .pin svg { display: block; width: 100%; height: 100%; }
 
-.pin--open { color: #f5a524; }
-.pin--mine { color: #3b82f6; }
-.pin--taken { color: #6b7280; opacity: 0.6; }
-.pin--selected { transform: scale(1.3); }
+.pin--open { color: var(--open); }
+.pin--mine { color: var(--mine); }
+.pin--taken { color: var(--taken); opacity: 0.85; }
+
+/* Selected needs to be findable at a glance — scale alone was too subtle to
+   tell which pin the panel is describing. The ring does the work. */
+.pin--selected { transform: scale(1.32); }
+/* A persistent ring, not a pulse. An animation that fades to nothing is
+   invisible for part of every cycle, which is useless as a "this is the one
+   the panel is describing" indicator — and it is exactly what a screenshot or
+   a glance at the wrong moment catches. */
+.pin--selected::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.45;
+}
+/* The pulse is a second, additive ring, so the steady one is always there. */
+.pin--selected::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: ring 1.9s ease-out infinite;
+}
+@keyframes ring {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  75%, 100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ---------- empty state ---------- */
+.empty {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 750; max-width: 330px; padding: 1.4rem 1.6rem; text-align: center;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 34px rgba(60, 46, 24, 0.14);
+}
+.empty__title { margin: 0 0 0.4rem; font-family: var(--display); font-size: 1.25rem; }
+.empty__sub { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
 
 /* ---------- side panel ---------- */
 .panel {
-  flex: 0 0 320px; padding: 1.25rem; overflow-y: auto;
+  flex: 0 0 330px; padding: 1.4rem; overflow-y: auto;
   background: var(--panel); border-left: 1px solid var(--line);
 }
 .panel--empty { display: flex; align-items: center; justify-content: center; color: var(--muted); }
-.panel__donor { margin: 0.6rem 0 0.35rem; font-size: 1.15rem; }
-.panel__desc { margin: 0 0 0.75rem; line-height: 1.5; }
-.panel__meta { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.35rem; }
-.panel__actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.25rem; }
-
-.badge {
-  display: inline-block; padding: 0.2rem 0.55rem; border-radius: 999px;
-  font-size: 0.75rem; font-weight: 600;
+.panel__donor {
+  margin: 0.7rem 0 0.4rem;
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
 }
-.badge--open { background: rgba(245, 165, 36, 0.18); color: #f5a524; }
-.badge--mine { background: rgba(59, 130, 246, 0.18); color: #7aa7f7; }
-.badge--taken { background: rgba(107, 114, 128, 0.22); color: var(--muted); }
+.panel__desc { margin: 0 0 0.9rem; line-height: 1.55; font-size: 0.92rem; }
+.panel__meta { color: var(--muted); font-size: 0.82rem; margin: 0 0 0.35rem; }
+.panel__actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.4rem; }
+
+/* Thin-bordered pills, the way the reference sets its metadata. */
+.badge {
+  display: inline-block; padding: 0.22rem 0.6rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em;
+  border: 1px solid currentColor; background: transparent;
+  transition: color var(--ease), border-color var(--ease);
+}
+.badge--open { color: var(--open); }
+.badge--mine { color: var(--mine); }
+.badge--taken { color: var(--muted); }
+
+/* ---------- pickup window ----------
+   A driver cares how long they have, not the wall-clock deadline. Colour
+   carries urgency, but the text says it too — never colour alone. */
+.popup__when, .panel__when {
+  display: block; font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 0.25rem;
+}
+.popup__when--ok, .panel__when--ok { color: var(--mine); }
+.popup__when--soon, .panel__when--soon { color: var(--open); }
+.popup__when--overdue, .panel__when--overdue { color: #b3401f; }
+.panel__when { margin: 0.6rem 0 0.1rem; }
 
 /* ---------- buttons ---------- */
 .btn {
-  padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
-  border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer;
+  padding: 0.6rem 0.95rem; border-radius: var(--radius); font-size: 0.88rem;
+  font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  transition: background-color var(--ease), border-color var(--ease), color var(--ease);
 }
-.btn:hover:not(:disabled) { border-color: #4a5468; }
-.btn:disabled { opacity: 0.5; cursor: default; }
-.btn--primary { background: #2563eb; border-color: #2563eb; }
-.btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn--primary { background: var(--ink); border-color: var(--ink); color: #faf8f3; }
+.btn--primary:hover:not(:disabled) { background: var(--ink-hover); border-color: var(--ink-hover); }
 
 /* ---------- name gate ---------- */
-.gate { height: 100%; display: flex; align-items: center; justify-content: center; }
-.gate__card { display: flex; flex-direction: column; gap: 0.5rem; width: min(360px, 90vw); }
-.gate__title { margin: 0; font-size: 1.6rem; }
-.gate__sub { margin: 0 0 1rem; color: var(--muted); }
-.gate__label { font-size: 0.85rem; color: var(--muted); }
+.gate { height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+.gate__card { display: flex; flex-direction: column; gap: 0.5rem; width: min(380px, 90vw); }
+.gate__card--center { align-items: center; text-align: center; }
+.gate__title { margin: 0; font-family: var(--display); font-size: 2.6rem; font-weight: 400; line-height: 1; }
+.gate__sub { margin: 0 0 1.1rem; color: var(--muted); line-height: 1.5; }
+.gate__label { font-size: 0.82rem; color: var(--muted); }
 .gate__input {
-  padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 1rem;
-  border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  padding: 0.65rem 0.8rem; border-radius: var(--radius); font-size: 1rem;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  transition: border-color var(--ease);
 }
-.gate__error { color: #f87171; font-size: 0.85rem; margin: 0; }
+.gate__input:hover { border-color: var(--muted); }
+.gate__error { color: #b3401f; font-size: 0.85rem; margin: 0; }
 
 /* ---------- toast ----------
-   The losing claimant's message. Centred and large enough to read from the
-   back of a room, because a judge needs to see it. */
+   The losing claimant's message, and the clearest thing in the demo. Large
+   enough to read from the back of a room. */
 .toast {
   position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%);
-  padding: 0.8rem 1.25rem; border-radius: 10px; font-weight: 600;
-  background: #7f1d1d; color: #fee2e2; border: 1px solid #b91c1c;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); z-index: 1000;
+  padding: 0.85rem 1.3rem; border-radius: var(--radius-lg); font-weight: 600;
+  background: #3b1410; color: #ffe9e2; border: 1px solid #5c2018;
+  box-shadow: 0 10px 30px rgba(40, 20, 10, 0.3); z-index: 1000;
   animation: toast-in 180ms ease-out;
 }
 @keyframes toast-in {
@@ -149,117 +232,121 @@ body,
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* Leaflet's panes sit at z-index 400-700; keep our chrome above them. */
-.panel, .app__header, .toast { position: relative; z-index: 800; }
-.toast { position: fixed; }
-
-/* ---------- map wrapper + empty state ---------- */
-.map-wrap { position: relative; height: 100%; width: 100%; }
-
-/* Sits above Leaflet's panes (z 400-700) but below the toast (800). */
-.empty {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  z-index: 750; max-width: 320px; padding: 1.25rem 1.5rem; text-align: center;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
-}
-.empty__title { margin: 0 0 0.4rem; font-weight: 650; }
-.empty__sub { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
-
-/* ---------- pickup window ----------
-   A driver cares how long they have, not the wall-clock deadline. Colour
-   carries urgency, but the text says it too — never colour alone. */
-.popup__when, .panel__when {
-  display: block; font-size: 0.75rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 0.25rem;
-}
-.popup__when--ok, .panel__when--ok { color: #6ee7a8; }
-.popup__when--soon, .panel__when--soon { color: #f5a524; }
-.popup__when--overdue, .panel__when--overdue { color: #f87171; }
-.panel__when { margin: 0.5rem 0 0.1rem; font-size: 0.8rem; }
-
-/* ---------- popups ----------
-   Leaflet's popup chrome is light by default; recolour it to match. */
+/* ---------- popups ---------- */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-  background: var(--panel); color: var(--text);
-  border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(60, 46, 24, 0.16);
 }
-.leaflet-popup-content { margin: 0.7rem 0.9rem; min-width: 180px; }
+.leaflet-popup-content-wrapper { border-radius: var(--radius-lg); }
+.leaflet-popup-content { margin: 0.8rem 1rem; min-width: 190px; }
 .leaflet-popup-content p { margin: 0; }
-.popup__donor { display: block; font-size: 0.95rem; margin-bottom: 0.15rem; }
-.popup__desc { display: block; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
-.popup__state { display: block; margin-top: 0.4rem; font-size: 0.78rem; color: var(--muted); }
+.popup__donor {
+  display: block; font-family: var(--display); font-size: 1.15rem;
+  font-weight: 400; margin-bottom: 0.2rem; line-height: 1.15;
+}
+.popup__desc { display: block; font-size: 0.83rem; color: var(--muted); line-height: 1.5; }
+.popup__state { display: block; margin-top: 0.45rem; font-size: 0.76rem; color: var(--muted); }
 .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
 
+/* Leaflet's own controls default to white-on-grey; warm them up. */
+.leaflet-bar a, .leaflet-bar a:hover {
+  background: var(--surface); color: var(--text); border-bottom-color: var(--line);
+}
+.leaflet-control-attribution {
+  background: rgba(251, 249, 244, 0.85) !important; color: var(--muted);
+}
+
 /* ---------- connecting spinner ---------- */
-.gate__card--center { align-items: center; text-align: center; }
 .spinner {
   width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 0.75rem;
-  border: 3px solid var(--line); border-top-color: #2563eb;
+  border: 3px solid var(--line-soft); border-top-color: var(--ink);
   animation: spin 800ms linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* Respect users who have asked for reduced motion. */
-@media (prefers-reduced-motion: reduce) {
-  .spinner { animation: none; }
-  .pin { transition: none; }
-}
 
 /* ---------- contention stress test ----------
    A demo instrument. Collapsed until asked for, so it never competes with the
    claim button during the normal two-laptop demo. */
 .stress__reveal {
-  margin-top: 1.5rem; padding: 0; border: 0; background: none; cursor: pointer;
+  margin-top: 1.6rem; padding: 0; border: 0; background: none; cursor: pointer;
   font-size: 0.8rem; font-weight: 600; color: var(--muted);
   border-bottom: 1px dashed var(--line);
 }
-.stress__reveal:hover { color: var(--text); }
+.stress__reveal:hover { color: var(--text); border-bottom-color: var(--muted); }
 
 .stress {
-  margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line);
+  margin-top: 1.6rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
   display: flex; flex-direction: column; gap: 0.6rem;
 }
-.stress__lead { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+.stress__lead { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.55; }
 .stress__result { display: flex; flex-direction: column; gap: 0.35rem; }
 .stress__tally { font-size: 0.85rem; color: var(--muted); }
 .stress__num { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
-.stress__num--won { color: #6ee7a8; }
-.stress__verdict { margin: 0.15rem 0 0; font-size: 0.85rem; line-height: 1.5; }
+.stress__num--won { color: var(--mine); }
+.stress__verdict { margin: 0.15rem 0 0; font-size: 0.85rem; line-height: 1.55; }
 .stress__reason { margin: 0; font-size: 0.78rem; color: var(--muted); }
 
+/* ---------- contention feed ----------
+   Sits over the map, bottom-left, clear of the zoom control and attribution.
+   Capped at a handful of rows: the stress test fires 50 at once, and a log
+   that grows without bound turns the demo's best moment into noise. */
+.feed {
+  position: absolute; left: 12px; bottom: 28px; z-index: 760;
+  display: flex; flex-direction: column-reverse; gap: 4px;
+  pointer-events: none; max-width: 270px;
+}
+.feed__row {
+  margin: 0; padding: 0.36rem 0.65rem; border-radius: 999px;
+  font-size: 0.78rem; line-height: 1.3;
+  background: rgba(251, 249, 244, 0.95);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(60, 46, 24, 0.1);
+  animation: feed-in 180ms ease-out;
+}
+.feed__row--won { border-color: rgba(47, 107, 75, 0.45); }
+.feed__row--lost { border-color: rgba(179, 64, 31, 0.4); color: var(--muted); }
+.feed__who { font-weight: 650; color: var(--text); }
+.feed__id { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+@keyframes feed-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 /* ---------- focus ----------
-   Everything interactive was mouse-only. A visible focus ring is table stakes
-   for polish and costs nothing. :focus-visible so mouse users never see it. */
+   :focus-visible so mouse users never see it. */
 .btn:focus-visible,
 .gate__input:focus-visible,
 .stress__reveal:focus-visible,
 .leaflet-marker-icon:focus-visible {
-  outline: 2px solid #7aa7f7;
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
   border-radius: 4px;
 }
 .gate__input:focus-visible { outline-offset: 0; }
 
+/* ---------- compatibility ----------
+   PostForm.css, MyPickups.css and AppActions.css are Ella's and carry a few
+   colours hardcoded for the old dark theme. Overriding here rather than
+   editing her files; fold these in properly when she next touches them. */
+.postform__backdrop, .postform-backdrop, [class*='backdrop'] {
+  background: rgba(60, 46, 24, 0.34) !important;
+}
+.btn--on { background: var(--ink) !important; border-color: var(--ink) !important; color: #faf8f3 !important; }
+
 /* ---------- narrow widths ----------
-   The panel is a fixed 320px column. Below roughly a small laptop that leaves
-   the map unusably thin, so stack instead. A judge may well be looking over a
-   shoulder at a half-width window. */
+   The panel is a fixed column. Below roughly a small laptop that leaves the
+   map unusably thin, so stack instead. */
 @media (max-width: 860px) {
   .app__body { flex-direction: column; }
   .app__map { flex: 1 1 60%; min-height: 220px; }
-  .panel {
-    flex: 0 0 auto;
-    max-height: 45%;
-    border-left: none;
-    border-top: 1px solid var(--line);
-  }
+  .panel { flex: 0 0 auto; max-height: 45%; border-left: none; border-top: 1px solid var(--line); }
   .app__header { flex-wrap: wrap; row-gap: 0.15rem; }
   .app__count { margin-left: 0; width: 100%; }
+  .feed { bottom: 12px; max-width: 200px; }
 }
-
 @media (max-width: 420px) {
-  .app__title { font-size: 0.95rem; }
+  .app__title { font-size: 1.35rem; }
   .app__tagline { font-size: 0.78rem; }
   .toast { left: 1rem; right: 1rem; transform: none; text-align: center; }
   @keyframes toast-in {
@@ -268,56 +355,7 @@ body,
   }
 }
 
-/* ---------- consistency ----------
-   Buttons, inputs and the panel used three different corner radii and two
-   transition durations. One scale reads as deliberate; three reads as drift. */
-:root {
-  --radius: 8px;
-  --radius-lg: 12px;
-  --ease: 160ms ease;
-}
-.btn, .gate__input { border-radius: var(--radius); transition: background-color var(--ease), border-color var(--ease); }
-.empty, .toast { border-radius: var(--radius-lg); }
-.badge { transition: background-color var(--ease), color var(--ease); }
-
-/* ---------- contention feed ----------
-   Sits over the map, bottom-left, clear of the zoom control and attribution.
-   Capped at a handful of rows: the stress test fires 50 at once, and a log
-   that grows without bound turns the demo's best moment into noise. */
-.feed {
-  position: absolute;
-  left: 12px;
-  bottom: 28px;
-  z-index: 760;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 4px;
-  pointer-events: none;
-  max-width: 260px;
-}
-.feed__row {
-  margin: 0;
-  padding: 0.35rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  line-height: 1.3;
-  background: rgba(27, 32, 41, 0.94);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(2px);
-  animation: feed-in 180ms ease-out;
-}
-.feed__row--won { border-color: rgba(110, 231, 168, 0.45); }
-.feed__row--lost { border-color: rgba(248, 113, 113, 0.4); color: var(--muted); }
-.feed__who { font-weight: 650; color: var(--text); }
-.feed__id { font-variant-numeric: tabular-nums; color: var(--muted); }
-
-@keyframes feed-in {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .feed__row { animation: none; }
-}
-@media (max-width: 860px) {
-  .feed { bottom: 12px; max-width: 200px; }
+  .spinner, .feed__row, .pin--selected::before { animation: none; display: none; }
+  .pin { transition: none; }
 }
