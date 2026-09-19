@@ -4,7 +4,14 @@ Paste into the standard Devpost fields. Written to be read by someone who
 cannot ask us a question, which is the opposite of the demo.
 
 **Before submitting:** screenshots of the board with 15 listings, the rejection
-toast mid-race, and the two-laptop setup. Repo link. Track: SpacetimeDB.
+toast mid-race, and the two-laptop setup. Repo link
+(`github.com/ellachh/scraps-hophacks` — the repo was renamed). Track:
+SpacetimeDB.
+
+**The counts below describe the published build with photos and profiles.** If
+that publish didn't happen and you're submitting from `main`, it is five tables,
+eleven reducers and one procedure, and the photo and shopfront paragraphs come
+out.
 
 **Lead with `docs/race.png`.** It is the technical argument in one picture, and
 a Devpost reader cannot ask us a question — so the thing we would say out loud
@@ -43,6 +50,12 @@ volunteer's screen updates instantly — no refresh, no polling.
 When two volunteers tap Claim on the same pickup in the same instant, exactly
 one wins. The other is told who beat them.
 
+Restaurants set up a shopfront once — name, a line about who they are, an
+address — and every pickup they post starts from it. They can photograph the
+food, and a volunteer sees the picture before deciding whether to drive. A
+volunteer who doesn't know what they want can just ask: "what's near me that's
+still warm?" is a question the database answers by reading the live board.
+
 That is easy to assert and hard to believe, so the app can prove it on demand:
 a button fires **50 concurrent claims** at one listing and reports the tally.
 Against the live database it comes back **1 succeeded, 49 rejected, 85ms** —
@@ -59,12 +72,13 @@ database you put your server *inside*. Our application logic compiles to
 WebAssembly and runs in the database; clients subscribe to queries and the
 database pushes changes.
 
-- **Backend**: one Rust module. Four tables, ten reducers, one server-side view.
+- **Backend**: one Rust module. Seven tables, fifteen reducers, three
+  procedures, one server-side view.
 - **Frontend**: React + TypeScript, Leaflet + OpenStreetMap.
-- **Data layer**: two `useTable` calls. That's the whole thing — there is no
-  fetching code anywhere in the client.
+- **Data layer**: `useTable`, and nothing else. There is no fetching code
+  anywhere in the client — not one `fetch`, not one poll.
 
-We used four SpacetimeDB features that most projects won't touch:
+We used five SpacetimeDB features that most projects won't touch:
 
 | Feature | What we do with it |
 |---|---|
@@ -72,9 +86,27 @@ We used four SpacetimeDB features that most projects won't touch:
 | Scheduled tables | Unclaimed listings expire on a 30-second timer |
 | Event tables | Claims broadcast to every client without being stored |
 | Server-side views | "My pickups" is computed in the database, not in React |
+| Procedures | The database itself makes outbound HTTP calls |
 
 Plus a claim ceiling — three open pickups per volunteer — counted **inside the
 transaction**, so it can't be raced any more than the claim itself can.
+
+**The procedures are the part we'd point at first.** A reducer is deliberately
+deterministic: no clock, no filesystem, no network. Procedures are the sanctioned
+way out of that, and we used them for three things — a Grok assistant that reads
+the live board and answers "where's the nearest bagel pickup?", a drafter that
+turns a donor's three words into a listing description, and an address geocoder.
+
+The geocoder is the one that isn't a stylistic choice. OpenStreetMap's Nominatim
+asks callers to identify themselves with a descriptive `User-Agent`, and a
+browser **will not let a page set that header** — it's on the forbidden list and
+is dropped silently. A module can set it. So the lookup runs inside the database
+because that's the only place it can run correctly, which is a fairly literal
+demonstration of the thing SpacetimeDB is arguing for.
+
+The API key lives in a table declared without `public`, so it's skipped by
+codegen and unreachable over a subscription. Nothing is in the client bundle and
+nothing is in the repo.
 
 ## Challenges we ran into
 
@@ -159,4 +191,4 @@ you taps.
 ## Built with
 
 `rust` · `spacetimedb` · `webassembly` · `typescript` · `react` · `vite` ·
-`leaflet` · `openstreetmap`
+`leaflet` · `openstreetmap` · `grok` · `xai`
