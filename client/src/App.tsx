@@ -10,6 +10,7 @@ import { isPlottable } from './listing'
 import Toast from './Toast'
 import { sameIdentity } from './identity'
 import { tables } from './module_bindings'
+import { openListings } from './queries'
 import './AppActions.css'
 
 /**
@@ -30,7 +31,12 @@ function Board() {
 
   // This call IS the subscription. No fetching, no polling, no store — rows
   // change on the server, this array changes, React re-renders.
-  const [listings] = useTable(tables.listing)
+  //
+  // Scoped to open listings server-side: a completed pickup stops being sent
+  // rather than being sent and discarded. `board` still filters `completed`
+  // because a row can complete while we hold it, and the local filter is what
+  // makes it leave the map in that instant.
+  const [listings] = useTable(openListings)
   const [users] = useTable(tables.user)
 
   const [selectedId, setSelectedId] = useState<bigint | null>(null)
