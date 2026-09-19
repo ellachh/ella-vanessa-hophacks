@@ -92,8 +92,13 @@ We added a `reset_board` reducer and put it in the rehearsal checklist.
 retry loop, no version column. The contested claim is a four-line check-then-set
 that is correct because reducers are serialized transactions.
 
-We proved it rather than asserting it — two concurrent calls from one shell
-line, one exit 0 and one exit 1, and a row with exactly one holder.
+We proved it rather than asserting it. Fifty concurrent claims fired at a single
+listing from one browser:
+
+> **50 fired · 1 succeeded · 49 rejected · 85ms**
+
+One write survived. No locks, no retries, no double-claim. It's a button in the
+app, so a judge can press it themselves rather than take our word for it.
 
 We also killed two features on purpose. Under a judging criterion that reads
 *most polished*, a half-built feature is a visible defect, not evidence of

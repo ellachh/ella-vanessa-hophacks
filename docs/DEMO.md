@@ -78,9 +78,19 @@ can't — it's that correct behaviour is the *default* here rather than the thin
 you remembered to add.
 
 **"Isn't that just an `if` statement?"**
-Best answer is the stress test: fire 50 concurrent claims, exactly one wins.
-Hand them the laptop and let them press it. Two people tapping is an anecdote;
-50 simultaneous calls is a demonstrated guarantee.
+Hand them the laptop. Select a listing → **"Prove the race →"** → **"Fire 50
+simultaneous claims"**. Verified result:
+
+> **50 fired · 1 succeeded · 49 rejected · 85ms**
+
+It releases its own claim, so they can run it as many times as they like. Two
+people tapping is an anecdote; 50 concurrent calls with one survivor is a
+demonstrated guarantee — and they triggered it, not us.
+
+Watch for one thing so it doesn't surprise you: the contention feed shows **one**
+line, not fifty. The 49 rejections roll back their own broadcast rows. That is
+the transaction boundary again, and it is a good thing to point out rather than
+gloss over.
 
 **"How do you stop someone claiming as another user?"**
 ```bash
