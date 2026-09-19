@@ -66,3 +66,82 @@ body,
   width: 100%;
   background: var(--bg);
 }
+
+/* ---------- layout ---------- */
+.app__body { flex: 1 1 auto; min-height: 0; display: flex; }
+.app__map { flex: 1 1 auto; min-height: 0; }
+.app__count { margin-left: auto; font-size: 0.85rem; color: var(--muted); }
+
+/* ---------- map pins ----------
+   State is a class so the grey-out is a CSS transition. Watching a pin fade
+   from amber to grey in real time is the demo; an instant swap reads as a
+   glitch. */
+.pin {
+  display: block; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.45);
+  transition: background-color 280ms ease, opacity 280ms ease, transform 160ms ease;
+}
+.pin--open { background: #f5a524; }
+.pin--mine { background: #3b82f6; }
+.pin--taken { background: #6b7280; opacity: 0.55; }
+.pin--selected { transform: scale(1.45); border-color: #fff; }
+
+/* ---------- side panel ---------- */
+.panel {
+  flex: 0 0 320px; padding: 1.25rem; overflow-y: auto;
+  background: var(--panel); border-left: 1px solid var(--line);
+}
+.panel--empty { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.panel__donor { margin: 0.6rem 0 0.35rem; font-size: 1.15rem; }
+.panel__desc { margin: 0 0 0.75rem; line-height: 1.5; }
+.panel__meta { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.35rem; }
+.panel__actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.25rem; }
+
+.badge {
+  display: inline-block; padding: 0.2rem 0.55rem; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.badge--open { background: rgba(245, 165, 36, 0.18); color: #f5a524; }
+.badge--mine { background: rgba(59, 130, 246, 0.18); color: #7aa7f7; }
+.badge--taken { background: rgba(107, 114, 128, 0.22); color: var(--muted); }
+
+/* ---------- buttons ---------- */
+.btn {
+  padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+  border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: #4a5468; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn--primary { background: #2563eb; border-color: #2563eb; }
+.btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+
+/* ---------- name gate ---------- */
+.gate { height: 100%; display: flex; align-items: center; justify-content: center; }
+.gate__card { display: flex; flex-direction: column; gap: 0.5rem; width: min(360px, 90vw); }
+.gate__title { margin: 0; font-size: 1.6rem; }
+.gate__sub { margin: 0 0 1rem; color: var(--muted); }
+.gate__label { font-size: 0.85rem; color: var(--muted); }
+.gate__input {
+  padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 1rem;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text);
+}
+.gate__error { color: #f87171; font-size: 0.85rem; margin: 0; }
+
+/* ---------- toast ----------
+   The losing claimant's message. Centred and large enough to read from the
+   back of a room, because a judge needs to see it. */
+.toast {
+  position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%);
+  padding: 0.8rem 1.25rem; border-radius: 10px; font-weight: 600;
+  background: #7f1d1d; color: #fee2e2; border: 1px solid #b91c1c;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); z-index: 1000;
+  animation: toast-in 180ms ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Leaflet's panes sit at z-index 400-700; keep our chrome above them. */
+.panel, .app__header, .toast { position: relative; z-index: 800; }
+.toast { position: fixed; }
