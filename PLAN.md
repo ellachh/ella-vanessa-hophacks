@@ -439,7 +439,9 @@ spacetime call -- food-pickup post_listing '"Donor"' '"desc"' \
 - [x] **Prove the race.** Done — transcript recorded below.
 - [x] Write a seed script — `server/seed.sh`, 15 Baltimore listings, run and
       verified in `spacetime sql`
-- [ ] Learn `spacetime logs` for debugging
+- [x] Learn `spacetime logs` for debugging — note that the module logs nothing
+      unless it calls `log::info!`. `claim_listing` now logs both outcomes; an
+      empty log stream elsewhere is expected, not broken.
 
 ### V — frontend
 
@@ -499,6 +501,24 @@ Row state afterward confirms a single holder:
 
 Also note the message names the winner — `claim_listing` looked up the `user`
 row, the same path that prints a teammate's name in the live demo.
+
+### Live contention log — a second demo surface
+
+`claim_listing` logs both branches, so `spacetime logs food-pickup -f` in a
+terminal shows the database resolving contention as it happens:
+
+```
+claim ACCEPTED  listing=30  holder=Identity(0xc200af83...)
+claim REJECTED  listing=30  already held by Ella CLI
+```
+
+Worth having open on screen during the pitch. The UI shows a judge *that* one
+claim won; the log shows them *both requests arriving and the server deciding*.
+That is a stronger demonstration of the serialized-transaction argument than the
+toast alone, and it costs nothing to leave running.
+
+Nothing else in the module logs. That is deliberate — instrumentation is cheap
+but not free, and this is the one place it earns its keep.
 
 ### Guard proof — authorization rejects
 

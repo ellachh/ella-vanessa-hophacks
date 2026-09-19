@@ -138,9 +138,11 @@ pub fn claim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
             .find(holder)
             .map(|u| u.name)
             .unwrap_or_else(|| "Someone else".to_string());
+        log::info!("claim REJECTED  listing={id}  already held by {who}");
         return Err(format!("{who} claimed this first."));
     }
 
+    log::info!("claim ACCEPTED  listing={id}  holder={:?}", ctx.sender());
     ctx.db.listing().id().update(Listing {
         claimed_by: Some(ctx.sender()),
         ..listing
