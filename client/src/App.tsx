@@ -98,7 +98,7 @@ function Board() {
     <div className="app">
       <header className="app__header">
         <h1 className="app__title">Scraps</h1>
-        <p className="app__tagline">Live food rescue board — Baltimore</p>
+        <p className="app__tagline">Baltimore food rescue board</p>
         <span className="app__count">
           {mode === 'donor'
             ? `${board.filter((l) => sameIdentity(l.postedBy, identity)).length} posted by you`

@@ -455,3 +455,72 @@ pub fn reset_board(ctx: &ReducerContext) {
     seed(ctx);
     log::info!("reset_board: cleared {n} listings, re-seeded {}", SEED.len());
 }
+
+// ---------------------------------------------------------------------------
+// SPIKE — procedures. Delete this block if the spike fails.
+// ---------------------------------------------------------------------------
+
+/// A private table: no `public`, so clients cannot read it and codegen skips it
+/// entirely. This is where an API key can live.
+#[spacetimedb::table(accessor = secret)]
+pub struct Secret {
+    #[primary_key]
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(spacetimedb::SpacetimeType)]
+pub struct Echo {
+    pub said: String,
+    pub open_listings: u64,
+}
+
+/// Can a procedure return a value to the caller, and read the database?
+#[spacetimedb::procedure]
+pub fn spike_echo(ctx: &mut spacetimedb::ProcedureContext, input: String) -> Echo {
+    let open = ctx.with_tx(|tx| tx.db.listing().iter().filter(|l| !l.completed).count());
+    Echo {
+        said: input,
+        open_listings: open as u64,
+    }
+}
+
+/// Does an outbound HTTP call compile inside a procedure?
+///
+/// Order matters: the guidance says perform network I/O BEFORE opening a
+/// transaction, never inside one. So we read what we need, let the transaction
+/// close, and only then call out.
+#[spacetimedb::procedure]
+pub fn spike_http(ctx: &mut spacetimedb::ProcedureContext) -> String {
+    use spacetimedb::http::{Body, Request};
+
+    // 1. Read inside a short transaction.
+    let key = ctx.with_tx(|tx| {
+        tx.db
+            .secret()
+            .name()
+            .find("xai_api_key".to_string())
+            .map(|s| s.value)
+    });
+    let Some(key) = key else {
+        return "no api key set".to_string();
+    };
+
+    // 2. Transaction is closed. Now the network call.
+    let request = Request::builder()
+        .method("POST")
+        .uri("https://api.x.ai/v1/chat/completions")
+        .header("authorization", format!("Bearer {key}"))
+        .header("content-type", "application/json")
+        .body(Body::from_bytes(b"{}".to_vec()))
+        .unwrap();
+
+    match ctx.http.send(request) {
+        Ok(response) => {
+            let status = response.status();
+            let body = response.into_body().into_string_lossy();
+            format!("{}: {}", status.as_u16(), body)
+        }
+        Err(e) => format!("request failed: {e}"),
+    }
+}

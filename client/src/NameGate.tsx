@@ -33,7 +33,7 @@ export default function NameGate({ onDone }: { onDone: () => void }) {
     <div className="gate">
       <form className="gate__card" onSubmit={submit}>
         <h1 className="gate__title">Scraps</h1>
-        <p className="gate__sub">Live food rescue board — Baltimore</p>
+        <p className="gate__sub">Baltimore food rescue board</p>
         <label className="gate__label" htmlFor="name">
           What should volunteers call you?
         </label>
