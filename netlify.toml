@@ -1,0 +1,19 @@
+# Deploy config for Netlify. Committed so the dashboard needs no manual setup —
+# connect the repo and this decides everything.
+#
+# The app is a static Vite build in client/ that talks to SpacetimeDB Maincloud
+# directly. There is no server here and no environment variables: the xAI key
+# lives in the module's private `secret` table, never in the bundle.
+
+[build]
+  base = "client"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# No SPA rewrite rule on purpose. Scraps has no client-side router, so a catch-all
+# to index.html would mask genuine 404s — which is exactly how the Leaflet marker
+# bug hid for so long (CLAUDE.md, trap #6: the static server answered a missing
+# PNG with index.html and a 200).
