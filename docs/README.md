@@ -4,6 +4,7 @@ Pitch and explanation assets. Nothing here is part of the app.
 
 | File | What it is |
 |---|---|
+| `CHEATSHEET.md` | Ten questions a judge is likely to ask, with the answers. Skim before judging. |
 | `DEMO.md` | The three-minute demo script: setup checklist, six beats, prepared answers, and what to do when something breaks. |
 | `DEVPOST.md` | Draft writeup for the Devpost fields. |
 | `why-spacetimedb.html` | The contested-claim race traced side by side against a REST equivalent, plus the three numbers we can defend. Open it in a browser — no build step, no dependencies. |
