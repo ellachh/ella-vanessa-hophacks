@@ -30,6 +30,41 @@ model.
 
 ---
 
+## 1b. "How do I know that 50-claim result isn't just text your app prints?"
+
+**Concede it immediately — they are right, and agreeing is what makes the rest
+credible.** The tally is computed in the browser. On its own it proves nothing.
+
+Then give them three things the app does not control:
+
+1. **The database's own log**, streaming in a separate terminal while it runs —
+   one `claim ACCEPTED`, forty-nine `claim REJECTED`. Keep that window facing
+   them when you fire it.
+2. **The other laptop**, which shows the listing claimed. A second independent
+   machine agrees.
+3. **`spacetime sql`** afterwards — one row, one holder.
+
+**The strongest single piece of evidence is not the in-app test at all.** It is
+the CLI transcript, because the app is not involved:
+
+```
+$ spacetime call -- food-pickup claim_listing 30 & \
+  spacetime call -- food-pickup claim_listing 30 & wait
+[1]  - done       spacetime call -- food-pickup claim_listing 30
+Error: Response text: Ella CLI claimed this first.
+[2]  + exit 1     spacetime call -- food-pickup claim_listing 30
+```
+
+Two independent OS processes, one exit 0, one exit 1. Nothing there came from
+code we wrote for the demo.
+
+Use them for different jobs: the in-app test is the **memorable moment** and the
+thing a judge can trigger themselves; the log beside it is what makes the moment
+**credible**; the CLI transcript is the **fallback** if they push, or if the live
+demo will not connect.
+
+---
+
 ## 2. "Why a procedure and not a reducer for the AI?"
 
 **Because a reducer must be deterministic** — no network, no clock, no
@@ -189,7 +224,8 @@ well in a pitch.
 ## Numbers to have ready
 
 - **50 fired · 1 succeeded · 49 rejected · 85ms**
-- **~190 lines** of Rust for the original backend; ~1,270 now with everything
+- **8 tables, 17 reducers, 3 procedures, 1 view** — ~1,310 lines of Rust
+- **~190 lines** when the backend was just the core loop
 - **2** `useTable` calls — the whole client data layer
 - **0** lines of locking, retry, cache-invalidation or polling code
 - **1** websocket during a five-minute demo, versus ~300 polled requests
@@ -200,3 +236,11 @@ well in a pitch.
 - ~~"Reducers can't call APIs so we couldn't do AI server-side"~~ — procedures can,
   and we used them
 - ~~"It's faster than REST"~~ — the argument is correctness, not speed
+
+
+---
+
+## Wording
+
+The UI says **User** and **Store**. The code and these notes say `volunteer` and
+`donor`. Use the screen's words when pointing at the screen.
