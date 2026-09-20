@@ -153,9 +153,8 @@ export default function StressTest({
           ))}
           {heldByMe && (
             <p className="stress__held">
-              Still held. Check the other laptop, the module log, or
-              <code> spacetime sql food-pickup</code> — the row is really there.
-              Release when you are done looking.
+              Still held. Look on the other laptop, in the log, or run
+              <code> spacetime sql food-pickup</code>. Release when you're done.
             </p>
           )}
         </div>

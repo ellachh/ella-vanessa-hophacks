@@ -88,7 +88,7 @@ export default function AskPanel({
           className="ask__input"
           value={question}
           maxLength={MAX_QUESTION}
-          placeholder="something sweet…"
+          placeholder="Your preferences"
           aria-label="Ask about pickups"
           onChange={(e) => setQuestion(e.target.value)}
         />
@@ -130,7 +130,7 @@ export default function AskPanel({
       )}
 
       <p className="ask__note">
-        Answered inside the database — a procedure reads the open board, then calls the model.
+        The database answers this itself. No server in between.
       </p>
     </section>
   )
