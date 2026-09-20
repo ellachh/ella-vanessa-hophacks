@@ -559,3 +559,25 @@ html, body, #root { height: 100%; margin: 0; }
 .store__bio {
   margin: 0;
 }
+
+/* The stress test leaves its claim held so a judge can go and verify it
+   elsewhere. This line is the instruction to do that, so it should read as a
+   live state rather than as more result text. */
+.stress__held {
+  margin: 0.55rem 0 0;
+  padding: 0.5rem 0.6rem;
+  border-left: 3px solid var(--mine);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.stress__held code {
+  font-size: 0.76rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+}
