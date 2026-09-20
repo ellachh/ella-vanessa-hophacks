@@ -2,23 +2,17 @@
 
 Everything that is not code. Nothing here runs in the app.
 
-| File | What |
-|---|---|
-| `CLAUDE.md` | The project brief — scope, data model, and every trap we hit. Start here. |
-| `PLAN.md` | Phases, ownership, and the verification log |
-| `PROMPTS.md` | How the work was split between the two of us |
-| `DEMO.md` | The three-minute demo script |
-| `CHEATSHEET.md` | Questions a judge is likely to ask, with answers |
-| `CHECKLIST.md` | Pre-demo verification, every feature in the order a judge hits them |
-| `DEVPOST.md` | The submission write-up, paste-ready |
-| `race.svg` · `race.png` | The contested-claim diagram |
-
 | File | What it is |
 |---|---|
-| `CHEATSHEET.md` | Ten questions a judge is likely to ask, with the answers. Skim before judging. |
-| `DEMO.md` | The three-minute demo script: setup checklist, six beats, prepared answers, and what to do when something breaks. |
-| `DEVPOST.md` | Draft writeup for the Devpost fields. |
-| `why-spacetimedb.html` | The contested-claim race traced side by side against a REST equivalent, plus the three numbers we can defend. Open it in a browser — no build step, no dependencies. |
+| `CLAUDE.md` | The project brief — scope, data model, and every trap we hit. Start here. |
+| `projectrational.md` | Why the project is built this way: where it came from, what we added and why, what we cut, and what it would take to be real. |
+| `DEMO.md` | The three-minute demo script: setup checklist, the beats, prepared answers, and what to do when something breaks. |
+| `CHEATSHEET.md` | Questions a judge is likely to ask, with the answers. Skim before judging. |
+| `CHECKLIST.md` | Pre-demo verification, every feature in the order a judge hits them. |
+| `DEVPOST.md` | The submission write-up, paste-ready. |
+| `PLAN.md` · `PROMPTS.md` | Phases, ownership, the verification log, and how the work was split. |
+| `why-spacetimedb.html` | The contested claim traced against a REST equivalent. Open it in a browser — no build step. |
+| `race.svg` · `race.png` | The contested-claim diagram. |
 
 ## `why-spacetimedb.html`
 
