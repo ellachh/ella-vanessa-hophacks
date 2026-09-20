@@ -1,3 +1,10 @@
+// Tests for pickupWindow.ts, which turns a listing's pickup_by Timestamp into
+// the countdown text on the panel and the urgency word that colours it.
+//
+// Every function takes an explicit `now` so these never race the real clock.
+// The boundary cases below are the ones that were wrong at some point: a
+// deadline exactly reached, a gap under a minute, and an hour on the nose.
+
 import { describe, expect, it } from 'vitest'
 import { Timestamp } from 'spacetimedb'
 
@@ -22,6 +29,8 @@ describe('timeLeft', () => {
     expect(timeLeft(at(45 * MIN), NOW)).toBe('45m left')
   })
 
+  // '0m left' reads as expired when it is not, so anything under a minute
+  // rounds up.
   it('rounds sub-minute up to 1m rather than showing 0m', () => {
     expect(timeLeft(at(30_000), NOW)).toBe('1m left')
   })
@@ -42,6 +51,8 @@ describe('timeLeft', () => {
     expect(timeLeft(at(-1 * MIN), NOW)).toBe('Past pickup time')
   })
 
+  // At exactly the deadline the window has closed, so this is 'past' rather
+  // than a zero countdown.
   it('treats the exact deadline as past, not as 0m left', () => {
     expect(timeLeft(at(0), NOW)).toBe('Past pickup time')
   })
@@ -54,6 +65,8 @@ describe('urgencyOf', () => {
     expect(urgencyOf(at(5 * HOUR), NOW)).toBe('ok')
   })
 
+  // 'soon' means under an hour. One hour exactly is the first value that is
+  // not, which is the off-by-one worth pinning.
   it('treats exactly one hour as ok, not soon', () => {
     expect(urgencyOf(at(HOUR), NOW)).toBe('ok')
     expect(urgencyOf(at(HOUR - 1), NOW)).toBe('soon')

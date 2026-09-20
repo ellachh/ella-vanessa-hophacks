@@ -103,6 +103,7 @@ claim correct. Procedures exist for the work reducers must refuse.
 | File | For |
 |---|---|
 | [`docs/CLAUDE.md`](docs/CLAUDE.md) | The project brief — scope, data model, and every trap we hit |
+| [`docs/projectrational.md`](docs/projectrational.md) | Why it is built this way — the reasoning, including what we changed our minds about |
 | [`docs/DEMO.md`](docs/DEMO.md) | The three-minute demo script |
 | [`docs/CHEATSHEET.md`](docs/CHEATSHEET.md) | Questions a judge is likely to ask, with answers |
 | [`docs/CHECKLIST.md`](docs/CHECKLIST.md) | Pre-demo verification, every feature |

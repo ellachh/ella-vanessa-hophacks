@@ -34,6 +34,9 @@ export default function RestaurantView({
   onPost: () => void
   onError: (message: string) => void
 }) {
+  // The same rows the map is showing, read by who posted them instead of who
+  // claimed them. posted_by is already on every listing, so this view needed no
+  // new table, no new query and no new reducer.
   const posted = listings.filter((l) => sameIdentity(l.postedBy, me))
   const [profiles] = useTable(tables.donorProfile)
   const mine = profiles.find((p) => sameIdentity(p.identity, me))
@@ -41,6 +44,7 @@ export default function RestaurantView({
   // downloads. Same pattern as the food photos.
   const [storePhotos] = useTable(storePhotoFor(me))
   const storePhoto = storePhotos.find((p) => isSafePhotoSrc(p.dataUri))?.dataUri ?? ''
+  // Whether the store-details modal is open.
   const [editing, setEditing] = useState(false)
 
   return (

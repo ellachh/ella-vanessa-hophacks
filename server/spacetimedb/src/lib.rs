@@ -7,7 +7,9 @@ use std::time::Duration;
 // every client subscribes to every row, so a malformed listing is not a local
 // problem, it is everyone's problem.
 const MAX_NAME: usize = 40;
+/// Longest a store's name may be on a listing.
 const MAX_DONOR: usize = 80;
+/// Longest a listing's description may be. About a tweet.
 const MAX_DESCRIPTION: usize = 280;
 
 /// A volunteer may hold this many open claims at once. Hoarding pickups you
@@ -152,6 +154,9 @@ pub struct DonorPhoto {
 // Validation — user-facing copy. These strings are read aloud during the demo.
 // ---------------------------------------------------------------------------
 
+/// Rejects empty or over-long text and names the field in the error, so the
+/// message can go straight on screen. `label` is what the user calls the field,
+/// not what the column is called.
 fn check_len(label: &str, value: &str, max: usize) -> Result<(), String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -175,6 +180,9 @@ fn check_coords(lat: f64, lng: f64) -> Result<(), String> {
     Ok(())
 }
 
+/// Looks up a display name for an identity, falling back to "Someone else" if
+/// that client never set one. Used to build the rejection a losing claimer
+/// reads, which is why it must never fail.
 fn display_name(ctx: &ReducerContext, who: Identity) -> String {
     ctx.db
         .user()
@@ -189,6 +197,9 @@ fn display_name(ctx: &ReducerContext, who: Identity) -> String {
 // ---------------------------------------------------------------------------
 
 #[spacetimedb::reducer]
+/// Stores a display name for whoever called. Creates the row on first use and
+/// overwrites it afterwards, keyed on ctx.sender so a client can only name
+/// itself.
 pub fn set_name(ctx: &ReducerContext, name: String) -> Result<(), String> {
     check_len("Your name", &name, MAX_NAME)?;
     let name = name.trim().to_string();
@@ -208,6 +219,11 @@ pub fn set_name(ctx: &ReducerContext, name: String) -> Result<(), String> {
 }
 
 #[spacetimedb::reducer]
+/// Puts surplus food on the board: validates the text and the coordinates,
+/// then inserts one listing owned by the caller and claimed by nobody.
+///
+/// Superseded by post_listing_with_photo for anything the client posts, and
+/// kept because it still works and the CLI uses it.
 pub fn post_listing(
     ctx: &ReducerContext,
     donor: String,
@@ -284,6 +300,8 @@ pub fn claim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
 }
 
 #[spacetimedb::reducer]
+/// Gives a pickup back to the board. Clears claimed_by so the pin turns open
+/// again on every screen.
 pub fn unclaim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
     let listing = ctx
         .db
@@ -308,6 +326,8 @@ pub fn unclaim_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
 }
 
 #[spacetimedb::reducer]
+/// Marks a pickup delivered. Sets completed, which drops the row out of the
+/// subscription every client is using, so it leaves both boards at once.
 pub fn complete_listing(ctx: &ReducerContext, id: u64) -> Result<(), String> {
     let listing = ctx
         .db
@@ -407,6 +427,8 @@ pub fn arm_expiry(ctx: &ReducerContext) {
     arm(ctx);
 }
 
+/// Starts the expiry timer by inserting one row into the scheduled table.
+/// Does nothing if a row is already there, so calling it twice is safe.
 fn arm(ctx: &ReducerContext) {
     if ctx.db.expiry_tick().count() > 0 {
         return;
@@ -490,6 +512,8 @@ const SEED: &[(&str, &str, i64, f64, f64)] = &[
     ("Roland Park Bistro", "Family meal surplus — chicken, potatoes, greens", 5, 39.3520, -76.6320),
 ];
 
+/// Lays down the starting board from SEED, with pickup windows measured from
+/// now rather than from fixed times. Does nothing if any listing exists.
 fn seed(ctx: &ReducerContext) {
     if ctx.db.listing().count() > 0 {
         return;
@@ -607,10 +631,18 @@ pub struct Suggestion {
     pub failed: bool,
 }
 
+/// Longest question the assistant will accept.
 const MAX_QUESTION: usize = 200;
+/// How many open listings get sent to the model as context. Enough to answer
+/// from, small enough to keep the request quick.
 const MAX_CONTEXT_LISTINGS: usize = 25;
+/// Used when no xai_model secret is set. Both AI features read this same
+/// setting, so they can never disagree about which model to call.
 const DEFAULT_MODEL: &str = "grok-3";
 
+/// Builds an answer that carries a sentence to show instead of a result.
+/// The assistant never panics and never returns an error type: a failure has
+/// to reach the screen as readable text, not as a broken panel.
 fn fail(message: &str) -> Suggestion {
     Suggestion {
         answer: message.to_string(),
@@ -628,6 +660,9 @@ struct Nearby {
     minutes_left: i64,
 }
 
+/// Great-circle distance between two points, in miles. Used to tell the model
+/// how far each listing is from the person asking, so it can answer "what is
+/// closest" without guessing.
 fn haversine_miles(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
     let r = 3958.8_f64;
     let to_rad = |d: f64| d * std::f64::consts::PI / 180.0;
@@ -823,7 +858,9 @@ Reply with JSON only: {\"answer\": string, \"listing_id\": number or null}";
 // Donor profiles, photos, and the two procedures that call out to the network.
 // ---------------------------------------------------------------------------
 
+/// Longest a store's "about us" line may be.
 const MAX_BIO: usize = 240;
+/// Longest a typed street address may be.
 const MAX_ADDRESS: usize = 120;
 
 /// Cap on the encoded photo string. A 720px JPEG at moderate quality lands
@@ -837,6 +874,12 @@ const MAX_PHOTO_CHARS: usize = 140_000;
 /// can. That is the reason `geocode` runs here and not in React.
 const USER_AGENT: &str = "Scraps/1.0 (HopHacks food-rescue demo; +https://github.com/ellachh/scraps-hophacks)";
 
+/// Rejects anything that is not one of three base64 image data URIs, and
+/// anything over the size cap.
+///
+/// The prefix check is a security check as much as a format one: the client
+/// runs the same test before an image reaches an <img src>, and neither is
+/// meant to be the only one.
 fn check_photo(data_uri: &str) -> Result<(), String> {
     if !(data_uri.starts_with("data:image/jpeg;base64,")
         || data_uri.starts_with("data:image/png;base64,")
@@ -1043,6 +1086,8 @@ pub fn remove_photo(ctx: &ReducerContext, listing_id: u64) -> Result<(), String>
 // ---------------------------------------------------------------------------
 
 #[derive(spacetimedb::SpacetimeType)]
+/// What geocode hands back: either a usable point, or `ok: false` and a
+/// sentence explaining why not.
 pub struct GeoResult {
     pub ok: bool,
     pub lat: f64,
@@ -1052,6 +1097,8 @@ pub struct GeoResult {
 }
 
 impl GeoResult {
+    /// A failed lookup carrying the reason. Coordinates are zeroed and the
+    /// caller is expected to check `ok` rather than read them.
     fn failed(message: impl Into<String>) -> Self {
         GeoResult {
             ok: false,
@@ -1152,6 +1199,8 @@ pub fn geocode(ctx: &mut spacetimedb::ProcedureContext, address: String) -> GeoR
 }
 
 #[derive(spacetimedb::SpacetimeType)]
+/// What suggest_description hands back: either drafted text, or `ok: false`
+/// and a sentence explaining why not.
 pub struct DescriptionDraft {
     pub ok: bool,
     pub text: String,
@@ -1159,6 +1208,8 @@ pub struct DescriptionDraft {
 }
 
 impl DescriptionDraft {
+    /// A failed draft carrying the reason. The store types their own text and
+    /// posting is unaffected, which is why this never needs to be an error.
     fn failed(message: impl Into<String>) -> Self {
         DescriptionDraft {
             ok: false,
@@ -1168,6 +1219,9 @@ impl DescriptionDraft {
     }
 }
 
+/// The instructions sent to the model for a description. Written to stop it
+/// inventing detail the store did not give, since whatever it writes ends up
+/// on a public board as if the store had said it.
 const SUGGEST_SYSTEM: &str = "You write listings for a food-rescue board where restaurants post \
 surplus food and volunteer drivers claim it. Given the business and a short note, write one plain \
 description a driver can act on: what the food is, roughly how much, and any handling note that \

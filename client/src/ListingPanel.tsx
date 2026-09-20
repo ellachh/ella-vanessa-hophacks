@@ -31,9 +31,15 @@ export default function ListingPanel({
   heldCount: number
   onError: (message: string) => void
 }) {
+  // The three things a user can do to a pickup. Each one is refused by the
+  // module unless it is allowed: claim only if nobody holds it, release and
+  // deliver only if you are the holder.
   const claim = useReducer(reducers.claimListing)
   const unclaim = useReducer(reducers.unclaimListing)
   const complete = useReducer(reducers.completeListing)
+
+  // Disables the buttons while a call is in flight, so one tap cannot become
+  // three.
   const [busy, setBusy] = useState(false)
 
   // Scoped to the selected listing, so the board never pulls photos it is not

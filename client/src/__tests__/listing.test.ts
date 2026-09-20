@@ -1,3 +1,11 @@
+// Tests for identity.ts and listing.ts — the two bits of logic the board reads
+// on every render.
+//
+// sameIdentity exists because Identity is a class, so `===` compares object
+// references and is false even for the same user. listingState decides whether
+// a pin draws open, yours or taken. isPlottable rejects coordinates that would
+// break the map for everyone, not just for whoever posted them.
+
 import { describe, expect, it } from 'vitest'
 import { Identity, Timestamp } from 'spacetimedb'
 

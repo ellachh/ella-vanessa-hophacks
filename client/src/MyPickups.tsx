@@ -23,10 +23,18 @@ export default function MyPickups({
   onSelect: (id: bigint) => void
   onError: (message: string) => void
 }) {
+  // The two reducers that close the loop: give a pickup back, or mark it
+  // delivered. Both are refused by the module unless you hold the claim.
   const unclaim = useReducer(reducers.unclaimListing)
   const complete = useReducer(reducers.completeListing)
+
+  // Which row is mid-call, so only that row's buttons disable rather than the
+  // whole list.
   const [busyId, setBusyId] = useState<bigint | null>(null)
 
+  // Shared wrapper for both actions: mark the row busy, call the reducer, show
+  // whatever it says if it refuses. Nothing is updated locally — the row
+  // changes when the subscription delivers the new version.
   async function run(id: bigint, fn: (params: { id: bigint }) => Promise<void>) {
     setBusyId(id)
     try {
