@@ -10,7 +10,7 @@ published a module and seen a live update. Do not start building on one machine.
 **Ella runs hers first.** Vanessa's frontend work needs the generated bindings
 that Ella's Phase 1 produces. Vanessa can do her scaffold and dependency install
 in parallel, but she is blocked on real types until Ella commits
-`client/src/module_bindings/`.
+`../client/src/module_bindings/`.
 
 ---
 
@@ -31,7 +31,7 @@ PHASE 1 (do this first, it unblocks Vanessa):
 2. Write the `listing` and `user` table definitions
 3. Write all five reducers as EMPTY STUBS that compile and do nothing
 4. Publish the stub module
-5. Run `spacetime generate --lang typescript --out-dir client/src/module_bindings`
+5. Run `spacetime generate --lang typescript --out-dir ../client/src/module_bindings`
 6. Commit the generated bindings and tell me to tell Vanessa she is unblocked
 
 PHASE 2 (after bindings are committed):
@@ -52,7 +52,7 @@ CRITICAL CONSTRAINTS:
 - `claim_listing` must be CONDITIONAL: only write `claimed_by` if it is currently
   None. That conditional is the entire technical argument of our submission.
   Never simplify it into an unconditional write.
-- Do not edit anything in `client/` except `client/src/module_bindings/`, which
+- Do not edit anything in `client/` except `../client/src/module_bindings/`, which
   is generated output — regenerate it, never hand-edit it.
 - Do not add tables, fields, reducers, or features beyond what CLAUDE.md lists.
   See "Explicitly NOT in scope". Suggest ideas, do not build them.
@@ -86,7 +86,7 @@ PHASE 1 (can start immediately, no dependency on Ella):
    (if the map renders as a grey box, the CSS import is missing — this is the
    single most common Leaflet mistake)
 
-PHASE 2 (needs `client/src/module_bindings/` from Ella — ask her before starting):
+PHASE 2 (needs `../client/src/module_bindings/` from Ella — ask her before starting):
 4. Connect to the module and subscribe to `SELECT * FROM listing` and
    `SELECT * FROM user`
 5. Render listings as map markers, driven ONLY by the subscription
@@ -101,7 +101,7 @@ CRITICAL CONSTRAINTS:
   no Redux. You subscribe once, rows change, React re-renders. If you find
   yourself writing code that asks the server for data, stop — you have
   misunderstood the database. Re-read the SpacetimeDB client SDK docs.
-- NEVER hand-edit `client/src/module_bindings/`. It is generated from Ella's
+- NEVER hand-edit `../client/src/module_bindings/`. It is generated from Ella's
   module. If the types look wrong, the schema is wrong — tell Ella, do not patch
   the bindings. Editing them makes the client and server silently disagree and
   you will not find out until the demo.
@@ -136,8 +136,8 @@ browser greys the pin in the other with no refresh.
 
 | Thing | Where | State |
 |---|---|---|
-| Two tables, five reducers | `server/spacetimedb/src/lib.rs` | Done. Validation + `Result` errors. Published to Maincloud as `food-pickup`. |
-| Generated bindings | `client/src/module_bindings/` | Done. Generated output — never hand-edit. |
+| Two tables, five reducers | `../server/spacetimedb/src/lib.rs` | Done. Validation + `Result` errors. Published to Maincloud as `food-pickup`. |
+| Generated bindings | `../client/src/module_bindings/` | Done. Generated output — never hand-edit. |
 | Connection + subscription | `main.tsx`, `App.tsx` | Done. Two `useTable` calls are the entire data layer. |
 | Map + markers | `MapView.tsx` | Done. Amber open / blue yours / grey taken, 280ms transition. |
 | Name gate | `NameGate.tsx` | Done. Blocks the board so both volunteers always have display names. |
@@ -162,7 +162,7 @@ Git merges different files silently. It only fights when you edit the same one.
 | `ConnectionGate.tsx` (new) | **V** | V's loading / empty / connection-lost states live here |
 | `index.css` | **V** | E appends nothing here |
 | `server/**` | **E** | V does not touch |
-| `client/src/module_bindings/` | **E** | Generated. Regenerate, never hand-edit. |
+| `../client/src/module_bindings/` | **E** | Generated. Regenerate, never hand-edit. |
 
 **V's first job is to move the connection-state handling out of `App.tsx` into
 `ConnectionGate.tsx`.** After that V never edits `App.tsx` again and E owns it
@@ -558,7 +558,7 @@ below serves that sentence.
 FIRST: `git tag demo-v1 && git push origin demo-v1`. We have a working demo
 and everything below can break it.
 
-FILES I OWN: server/** and client/src/module_bindings/ (generated — regenerate,
+FILES I OWN: server/** and ../client/src/module_bindings/ (generated — regenerate,
 never hand-edit). In client/ I still own App.tsx, PostForm.tsx, MyPickups.tsx
 and my own CSS. I must not edit MapView.tsx, ListingPanel.tsx, Toast.tsx,
 NameGate.tsx, ConnectionGate.tsx, listing.ts, pickupWindow.ts or index.css.
@@ -603,7 +603,7 @@ Unchanged from Phase 3 except that E now owns the files she created.
 
 | File | Owner |
 |---|---|
-| `server/**`, `client/src/module_bindings/` | **E** |
+| `server/**`, `../client/src/module_bindings/` | **E** |
 | `App.tsx`, `PostForm.tsx`, `MyPickups.tsx` + their CSS | **E** |
 | `MapView.tsx`, `ListingPanel.tsx`, `Toast.tsx`, `NameGate.tsx` | **V** |
 | `ConnectionGate.tsx`, `listing.ts`, `pickupWindow.ts`, `index.css` | **V** |
@@ -802,7 +802,7 @@ git pull
 
 cd server/spacetimedb
 spacetime publish food-pickup --yes
-spacetime generate --lang typescript --out-dir ../../client/src/module_bindings
+spacetime generate --lang typescript --out-dir ../../../client/src/module_bindings
 
 cd ../../client && npx tsc -b && npm test && npm run build
 ```

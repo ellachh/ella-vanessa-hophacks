@@ -1,6 +1,17 @@
 # docs/
 
-Pitch and explanation assets. Nothing here is part of the app.
+Everything that is not code. Nothing here runs in the app.
+
+| File | What |
+|---|---|
+| `CLAUDE.md` | The project brief — scope, data model, and every trap we hit. Start here. |
+| `PLAN.md` | Phases, ownership, and the verification log |
+| `PROMPTS.md` | How the work was split between the two of us |
+| `DEMO.md` | The three-minute demo script |
+| `CHEATSHEET.md` | Questions a judge is likely to ask, with answers |
+| `CHECKLIST.md` | Pre-demo verification, every feature in the order a judge hits them |
+| `DEVPOST.md` | The submission write-up, paste-ready |
+| `race.svg` · `race.png` | The contested-claim diagram |
 
 | File | What it is |
 |---|---|

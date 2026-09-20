@@ -126,7 +126,7 @@ database, and each new table earns its place against that. It is not licence to
 keep adding them — `pickup_contact` was designed, attempted and then cut (see
 Known Traps #8).
 
-> **Syntax below is corrected against `server/CLAUDE.md`, which is Clockwork's
+> **Syntax below is corrected against `../server/CLAUDE.md`, which is Clockwork's
 > own 2.10.1 guidance shipped by `spacetime init`. That file is ground truth for
 > module syntax — read it before writing reducers.** Two things it settled that
 > this file had wrong: the attribute is `accessor =`, not `name =` (and it is
@@ -234,7 +234,7 @@ Plus a per-user view, `#[spacetimedb::view(accessor = my_pickups, public)]`,
 returning the listings `ctx.sender()` currently holds — server-computed rather
 than filtered in React.
 
-**The radius filter is a subscription, not a list filter.** `client/src/radius.ts`
+**The radius filter is a subscription, not a list filter.** `../client/src/radius.ts`
 builds the query with `.gte()`/`.lte()` on `lat` and `lng`, so narrowing the
 radius narrows what the server sends. It is a bounding *box* because the query
 builder compares columns to literals and has no trigonometry; `withinRadius`
@@ -452,7 +452,7 @@ All genuinely interesting client work happens in TypeScript.
    `marker-icon.png` that does not exist. `npm run dev` serves the stylesheet
    unhashed and looks perfect, so this surfaces only after `npm run build` —
    and without a 404 to notice, because the static server answers unknown paths
-   with `index.html` and a 200. Fixed in `client/src/leaflet-default-icon.ts`,
+   with `index.html` and a 200. Fixed in `../client/src/leaflet-default-icon.ts`,
    imported by `MapView`. Verified in a real browser, before and after.
 7. Seed 10–15 realistic listings early. A demo with two rows on the map looks
    like a prototype; fifteen looks like a product. Seeding is now the `init`
