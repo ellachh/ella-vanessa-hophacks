@@ -1,3 +1,5 @@
+import { Identity } from 'spacetimedb'
+
 import { tables } from './module_bindings'
 
 /**
@@ -29,4 +31,22 @@ export const openListings = tables.listing.where((r) => r.completed.eq(false))
  */
 export function photoFor(listingId: bigint | null) {
   return tables.listingPhoto.where((r) => r.listingId.eq(listingId ?? 0n))
+}
+
+/**
+ * The all-zero identity. SpacetimeDB never issues it, so a query filtered on
+ * it matches nothing — the same trick `photoFor` plays with id `0n`.
+ */
+const NOBODY = new Identity(0n)
+
+/**
+ * One store's own photo, and nothing else.
+ *
+ * Same reasoning as `photoFor`: `donor_profile` is subscribed wholesale in
+ * three places, so the picture lives in its own table and is fetched only for
+ * the store actually on screen. A query is still needed when there is no store
+ * in view, because hooks cannot be called conditionally.
+ */
+export function storePhotoFor(who: Identity | undefined) {
+  return tables.donorPhoto.where((r) => r.identity.eq(who ?? NOBODY))
 }

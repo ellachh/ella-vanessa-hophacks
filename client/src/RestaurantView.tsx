@@ -5,6 +5,8 @@ import { useTable } from 'spacetimedb/react'
 import DonorProfileForm from './DonorProfileForm'
 import { sameIdentity } from './identity'
 import { tables } from './module_bindings'
+import { isSafePhotoSrc } from './photo'
+import { storePhotoFor } from './queries'
 import type { Listing, User } from './module_bindings/types'
 import { pickupClock, timeLeft, urgencyOf } from './pickupWindow'
 
@@ -35,6 +37,10 @@ export default function RestaurantView({
   const posted = listings.filter((l) => sameIdentity(l.postedBy, me))
   const [profiles] = useTable(tables.donorProfile)
   const mine = profiles.find((p) => sameIdentity(p.identity, me))
+  // Scoped to this store, so a board full of shops is not a board full of
+  // downloads. Same pattern as the food photos.
+  const [storePhotos] = useTable(storePhotoFor(me))
+  const storePhoto = storePhotos.find((p) => isSafePhotoSrc(p.dataUri))?.dataUri ?? ''
   const [editing, setEditing] = useState(false)
 
   return (
@@ -42,17 +48,21 @@ export default function RestaurantView({
       {editing && (
         <DonorProfileForm
           existing={mine}
+          existingPhoto={storePhoto}
           onClose={() => setEditing(false)}
           onError={onError}
         />
       )}
 
-      <span className="badge badge--open">Donor</span>
+      <span className="badge badge--open">Store</span>
 
-      {/* The shopfront, above the listings, because it is the thing a donor
+      {/* The shopfront, above the listings, because it is the thing a store
           sets up first and then rarely touches. */}
       {mine ? (
         <div className="shopfront">
+          {storePhoto && (
+            <img className="shopfront__photo" src={storePhoto} alt={mine.name} />
+          )}
           <h2 className="panel__donor shopfront__name">{mine.name}</h2>
           {mine.bio && <p className="panel__bio">{mine.bio}</p>}
           {mine.address && <p className="panel__meta">{mine.address}</p>}
@@ -62,10 +72,10 @@ export default function RestaurantView({
         </div>
       ) : (
         <div className="shopfront shopfront--empty">
-          <h2 className="panel__donor shopfront__name">Set up your restaurant</h2>
+          <h2 className="panel__donor shopfront__name">Set up your store</h2>
           <p className="panel__desc">
-            Add your name, a line about who you are, and your address once. Every
-            pickup you post will start from it.
+            Add your name, a line about who you are, your address and a photo
+            once. Every pickup you post will start from it.
           </p>
           <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
             Add your details
@@ -78,9 +88,9 @@ export default function RestaurantView({
       {posted.length === 0 ? (
         <>
           <p className="panel__desc">
-            Nothing posted yet. When you put surplus food up, it appears on every
-            volunteer's map instantly — and you will see here the moment someone
-            claims it.
+            Nothing posted yet. When you put surplus food up, it appears on
+            every user's map instantly — and you will see here the moment
+            someone claims it.
           </p>
           <div className="panel__actions">
             <button className="btn btn--primary" onClick={onPost}>
@@ -94,7 +104,7 @@ export default function RestaurantView({
             {posted.map((l) => {
               const holder = l.claimedBy
                 ? (users.find((u) => sameIdentity(u.identity, l.claimedBy))?.name ??
-                  'a volunteer')
+                  'someone')
                 : null
               return (
                 <li key={String(l.id)} className="donor__row">
@@ -104,7 +114,7 @@ export default function RestaurantView({
                   <p className="donor__what">{l.donor}</p>
                   <p className="donor__desc">{l.description}</p>
                   <p className={`donor__status donor__status--${holder ? 'taken' : 'open'}`}>
-                    {holder ? `${holder} is collecting this` : 'Waiting for a volunteer'}
+                    {holder ? `${holder} is collecting this` : 'Not claimed yet'}
                   </p>
                   <p className="panel__meta">Pick up by {pickupClock(l.pickupBy)}</p>
                 </li>

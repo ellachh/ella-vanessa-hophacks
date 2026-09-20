@@ -18,10 +18,18 @@ export default function PhotoInput({
   value,
   onChange,
   onError,
+  label = 'Add a photo',
+  hint = 'People claim pickups they can see',
+  alt = 'The food you are posting',
 }: {
   value: string
   onChange: (dataUri: string) => void
   onError: (message: string) => void
+  /** Copy on the empty-state button. The component is used for food and for
+   *  the storefront, and "Add a photo of the food" is wrong on one of them. */
+  label?: string
+  hint?: string
+  alt?: string
 }) {
   const input = useRef<HTMLInputElement>(null)
   const [working, setWorking] = useState(false)
@@ -56,7 +64,7 @@ export default function PhotoInput({
 
       {value ? (
         <div className="photo__has">
-          <img className="photo__preview" src={value} alt="The food you are posting" />
+          <img className="photo__preview" src={value} alt={alt} />
           <div className="photo__buttons">
             <button type="button" className="btn btn--small" onClick={() => input.current?.click()}>
               Replace
@@ -73,9 +81,9 @@ export default function PhotoInput({
           onClick={() => input.current?.click()}
           disabled={working}
         >
-          {working ? 'Resizing…' : 'Add a photo'}
+          {working ? 'Resizing…' : label}
           <span className="photo__hint">
-            {working ? 'One moment' : 'Volunteers claim pickups they can see'}
+            {working ? 'One moment' : hint}
           </span>
         </button>
       )}

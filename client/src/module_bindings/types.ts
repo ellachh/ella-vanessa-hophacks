@@ -25,6 +25,12 @@ export const DescriptionDraft = __t.object("DescriptionDraft", {
 });
 export type DescriptionDraft = __Infer<typeof DescriptionDraft>;
 
+export const DonorPhoto = __t.object("DonorPhoto", {
+  identity: __t.identity(),
+  dataUri: __t.string(),
+});
+export type DonorPhoto = __Infer<typeof DonorPhoto>;
+
 export const DonorProfile = __t.object("DonorProfile", {
   identity: __t.identity(),
   name: __t.string(),

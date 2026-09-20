@@ -40,8 +40,10 @@ import ClaimListingReducer from "./claim_listing_reducer";
 import CompleteListingReducer from "./complete_listing_reducer";
 import PostListingReducer from "./post_listing_reducer";
 import PostListingWithPhotoReducer from "./post_listing_with_photo_reducer";
+import RemoveDonorPhotoReducer from "./remove_donor_photo_reducer";
 import RemovePhotoReducer from "./remove_photo_reducer";
 import ResetBoardReducer from "./reset_board_reducer";
+import SaveDonorPhotoReducer from "./save_donor_photo_reducer";
 import SaveDonorProfileReducer from "./save_donor_profile_reducer";
 import SeedBoardReducer from "./seed_board_reducer";
 import SetNameReducer from "./set_name_reducer";
@@ -55,6 +57,7 @@ import * as SuggestDescriptionProcedure from "./suggest_description_procedure";
 
 // Import all table schema definitions
 import ClaimAttemptRow from "./claim_attempt_table";
+import DonorPhotoRow from "./donor_photo_table";
 import DonorProfileRow from "./donor_profile_table";
 import ListingRow from "./listing_table";
 import ListingPhotoRow from "./listing_photo_table";
@@ -73,6 +76,17 @@ const tablesSchema = __schema({
     ],
     event: true,
   }, ClaimAttemptRow),
+  donorPhoto: __table({
+    name: 'donor_photo',
+    indexes: [
+      { accessor: 'identity', name: 'donor_photo_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'donor_photo_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, DonorPhotoRow),
   donorProfile: __table({
     name: 'donor_profile',
     indexes: [
@@ -137,8 +151,10 @@ const reducersSchema = __reducers(
   __reducerSchema("complete_listing", CompleteListingReducer),
   __reducerSchema("post_listing", PostListingReducer),
   __reducerSchema("post_listing_with_photo", PostListingWithPhotoReducer),
+  __reducerSchema("remove_donor_photo", RemoveDonorPhotoReducer),
   __reducerSchema("remove_photo", RemovePhotoReducer),
   __reducerSchema("reset_board", ResetBoardReducer),
+  __reducerSchema("save_donor_photo", SaveDonorPhotoReducer),
   __reducerSchema("save_donor_profile", SaveDonorProfileReducer),
   __reducerSchema("seed_board", SeedBoardReducer),
   __reducerSchema("set_name", SetNameReducer),
@@ -157,6 +173,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
   tables: typeof tablesSchema.schemaType.tables & {
     /** @deprecated Use `claimAttempt` instead. This alias will be removed in the next major version. */
     readonly "claim_attempt": Omit<typeof tablesSchema.schemaType.tables["claimAttempt"], "accessorName"> & { readonly accessorName: "claim_attempt" };
+    /** @deprecated Use `donorPhoto` instead. This alias will be removed in the next major version. */
+    readonly "donor_photo": Omit<typeof tablesSchema.schemaType.tables["donorPhoto"], "accessorName"> & { readonly accessorName: "donor_photo" };
     /** @deprecated Use `donorProfile` instead. This alias will be removed in the next major version. */
     readonly "donor_profile": Omit<typeof tablesSchema.schemaType.tables["donorProfile"], "accessorName"> & { readonly accessorName: "donor_profile" };
     /** @deprecated Use `listingPhoto` instead. This alias will be removed in the next major version. */
@@ -182,6 +200,7 @@ const REMOTE_MODULE = {
 
 const tableAccessorAliases = {
   "claim_attempt": "claimAttempt",
+  "donor_photo": "donorPhoto",
   "donor_profile": "donorProfile",
   "listing_photo": "listingPhoto",
   "my_pickups": "myPickups",
@@ -207,6 +226,8 @@ type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
   /** @deprecated Use `claimAttempt` instead. This alias will be removed in the next major version. */
   readonly "claim_attempt": __DbViewBase["claimAttempt"];
+  /** @deprecated Use `donorPhoto` instead. This alias will be removed in the next major version. */
+  readonly "donor_photo": __DbViewBase["donorPhoto"];
   /** @deprecated Use `donorProfile` instead. This alias will be removed in the next major version. */
   readonly "donor_profile": __DbViewBase["donorProfile"];
   /** @deprecated Use `listingPhoto` instead. This alias will be removed in the next major version. */
@@ -219,6 +240,8 @@ type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
   /** @deprecated Use `claimAttempt` instead. This alias will be removed in the next major version. */
   readonly "claim_attempt": __TablesBase["claimAttempt"];
+  /** @deprecated Use `donorPhoto` instead. This alias will be removed in the next major version. */
+  readonly "donor_photo": __TablesBase["donorPhoto"];
   /** @deprecated Use `donorProfile` instead. This alias will be removed in the next major version. */
   readonly "donor_profile": __TablesBase["donorProfile"];
   /** @deprecated Use `listingPhoto` instead. This alias will be removed in the next major version. */

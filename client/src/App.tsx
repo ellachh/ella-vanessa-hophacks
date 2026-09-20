@@ -114,14 +114,14 @@ function Board() {
               aria-pressed={mode === 'volunteer'}
               onClick={() => switchMode('volunteer')}
             >
-              Volunteer
+              User
             </button>
             <button
               className={`mode__btn${mode === 'donor' ? ' mode__btn--on' : ''}`}
               aria-pressed={mode === 'donor'}
               onClick={() => switchMode('donor')}
             >
-              Donor
+              Store
             </button>
           </div>
           {mode === 'volunteer' ? (
