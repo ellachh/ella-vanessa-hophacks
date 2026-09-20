@@ -158,7 +158,7 @@ export default function ListingPanel({
       {/* Demo instrument, not a product feature — collapsed so nobody trips it
           by accident, but reachable when a judge asks how deep the guarantee
           goes. */}
-      <StressTest listing={listing} />
+      <StressTest listing={listing} me={me} />
     </aside>
   )
 }
