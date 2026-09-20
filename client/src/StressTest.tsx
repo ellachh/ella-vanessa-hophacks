@@ -120,7 +120,8 @@ export default function StressTest({
   return (
     <section className="stress">
       <p className="stress__lead">
-        Fires {FIRE} claims at this listing at once. Exactly one can win.
+        This sends {FIRE} claims for this pickup at the same moment. Only one of
+        them can get it.
       </p>
       {heldByMe ? (
         <button className="btn" disabled={releasing} onClick={release}>
@@ -141,10 +142,10 @@ export default function StressTest({
           </div>
           <p className="stress__verdict">
             {run.won === 1
-              ? `One write survived. No locks, no retries, no double-claim. ${run.ms}ms.`
+              ? `One of the ${run.fired} claims got through. The other ${run.rejected} were turned down. It took ${run.ms}ms.`
               : run.won === 0
-                ? `Already claimed — all ${run.fired} refused. ${run.ms}ms.`
-                : `${run.won} winners — that should be impossible. Investigate.`}
+                ? `Someone already had this pickup, so all ${run.fired} claims were turned down. It took ${run.ms}ms.`
+                : `${run.won} claims got through. Only one should be able to, so something is wrong.`}
           </p>
           {run.reasons.map((r) => (
             <p key={r.text} className="stress__reason">
@@ -153,8 +154,10 @@ export default function StressTest({
           ))}
           {heldByMe && (
             <p className="stress__held">
-              Still held. Look on the other laptop, in the log, or run
-              <code> spacetime sql food-pickup</code>. Release when you're done.
+              The claim is still there, so you can go and check it: the other
+              laptop, the module log, or
+              <code> spacetime sql food-pickup</code>. Release it when you're
+              finished.
             </p>
           )}
         </div>
