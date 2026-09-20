@@ -119,7 +119,7 @@ is 40 minutes we do not have.
 
 ## Data model
 
-**Four tables as of Phase 5; seven as of Phase 7.** The original rule here was
+**Four tables as of Phase 5; seven as of Phase 7; eight as of Phase 8.** The original rule here was
 "two tables, resist a third". That rule is **deliberately lifted**, not broken: the Phase 5 goal is to
 show logic, scheduling, broadcast and server-side views all living inside the
 database, and each new table earns its place against that. It is not licence to
@@ -174,13 +174,18 @@ pub struct ExpiryTick {
 }
 ```
 
-Phase 7 added two more, and **both are tables rather than columns for the same
-reason** — trap #9 means a new column on a live table needs a default and an
-`Identity` column cannot have one, so extending `listing` or `user` in place
-was never available:
+Phase 7 added two more, and Phase 8 a third. An earlier draft said they *had*
+to be tables because of trap #9. **That was overstated and is corrected here.**
+A `String` or `f64` column with `#[default(...)]` migrates onto a live table
+fine — only an `Identity` column genuinely cannot, having no sensible default.
+So each of these could have been columns, and each is a table for its own
+reason instead. The honest answer to "why separate tables?" is below, and it is
+a better answer than "we had to":
 
 ```rust
-// A restaurant's standing details. Typed once, not once per listing.
+// A store's standing details. Typed once, not once per listing.
+// Could have been columns on `user`; kept separate because `user` is the
+// volunteer display-name table and a store's shopfront is a different thing.
 #[spacetimedb::table(accessor = donor_profile, public)]
 pub struct DonorProfile {
     #[primary_key]
@@ -193,8 +198,10 @@ pub struct DonorProfile {
 }
 
 // Separate from `listing` because a photo is ~1000x a listing row and every
-// client subscribes to the board. Clients subscribe to this scoped to the
-// listing they are looking at.
+// client subscribes to the board. This is the load-bearing reason: a photo
+// does not belong in a row everyone downloads. Clients subscribe to this
+// scoped to the listing they are looking at, so the volunteer who only wanted
+// a map pays nothing for photos.
 #[spacetimedb::table(accessor = listing_photo, public)]
 pub struct ListingPhoto {
     #[primary_key]
@@ -202,7 +209,26 @@ pub struct ListingPhoto {
     data_uri: String,  // data:image/jpeg;base64,… capped at 140_000 chars
     posted_by: Identity,
 }
+
+// Phase 8. The shopfront, not the food. Its own table for the same reason:
+// `donor_profile` is subscribed wholesale in three places, so a photo column
+// on it would push every shop's picture to every client on connect.
+//
+// Keyed on `identity` and only ever written for `ctx.sender()`, so unlike
+// `attach_photo` there is no ownership check here to forget.
+#[spacetimedb::table(accessor = donor_photo, public)]
+pub struct DonorPhoto {
+    #[primary_key]
+    identity: Identity,
+    data_uri: String,
+}
 ```
+
+**The UI says Store; the schema says donor.** `donor_profile`, `donor_photo`,
+`listing.donor` and the `'volunteer' | 'donor'` mode union in `App.tsx` all
+keep the old word, because renaming a live table or column is a migration this
+database refuses and the word never reaches a user. Do not "fix" the mismatch
+by renaming the schema.
 
 Plus a per-user view, `#[spacetimedb::view(accessor = my_pickups, public)]`,
 returning the listings `ctx.sender()` currently holds — server-computed rather
@@ -261,6 +287,8 @@ Deliberate choices:
 | `post_listing_with_photo(donor, description, pickup_by, lat, lng, photo)` | Listing and photo in one transaction. Empty `photo` means none. `post_listing` is unchanged. |
 | `attach_photo(listing_id, data_uri)` | Only if `listing.posted_by == ctx.sender` |
 | `remove_photo(listing_id)` | Only if `photo.posted_by == ctx.sender` |
+| `save_donor_photo(data_uri)` | Upsert `donor_photo` for `ctx.sender`. Takes no identity, so there is no check to forget. |
+| `remove_donor_photo()` | Deletes `ctx.sender`'s row. **No arguments** — the generated handle takes none either. |
 
 **Procedures** — the database calling *out*:
 
@@ -444,10 +472,14 @@ All genuinely interesting client work happens in TypeScript.
    being `public` means genuinely world-readable; never put anything sensitive
    in them.**
 9. **Adding a column to a table that already exists needs `#[default(...)]`.**
-   *(Relevant right now: a photo feature adding `photo_url` to `listing` will
-   hit this. A `String` column with `#[default("")]` migrates fine — the
+   *(A `String` column with `#[default("")]` does migrate fine — the
    restriction is on primary-key, unique and auto-increment columns. Without the
-   annotation the publish is refused outright.)*
+   annotation the publish is refused outright. The photo features were
+   considered as a `photo_url` column on `listing` and shipped as the separate
+   `listing_photo` and `donor_photo` tables instead — **not** to dodge this
+   trap, which `#[default("")]` would have handled, but because every client
+   subscribes to `listing` and `donor_profile`, and a photo does not belong in
+   a row everyone downloads.)*
    Publishing fails with *"Adding a column X to table Y requires a default value
    annotation"*, and the only way past it is `--delete-data`, which wipes
    everything. There is no meaningful default for an `Identity`, so a column of
