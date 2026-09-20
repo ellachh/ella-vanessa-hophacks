@@ -74,8 +74,8 @@ export default function RestaurantView({
         <div className="shopfront shopfront--empty">
           <h2 className="panel__donor shopfront__name">Set up your store</h2>
           <p className="panel__desc">
-            Add your name, a line about who you are, your address and a photo
-            once. Every pickup you post will start from it.
+            Name, address, a line about you, a photo. Fill it in once and
+            every pickup starts from it.
           </p>
           <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
             Add your details
@@ -88,9 +88,8 @@ export default function RestaurantView({
       {posted.length === 0 ? (
         <>
           <p className="panel__desc">
-            Nothing posted yet. When you put surplus food up, it appears on
-            every user's map instantly — and you will see here the moment
-            someone claims it.
+            Nothing posted yet. What you put up shows on every map straight
+            away, and you'll see here when someone claims it.
           </p>
           <div className="panel__actions">
             <button className="btn btn--primary" onClick={onPost}>

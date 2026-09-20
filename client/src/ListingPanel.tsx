@@ -132,9 +132,8 @@ export default function ListingPanel({
                 Claim this pickup
               </button>
               <p className="panel__limit">
-                You're holding {heldCount} of {MAX_OPEN_CLAIMS} pickups. Deliver or
-                release one to claim another — there's no daily cap, just three at
-                a time.
+                You're holding {heldCount} of {MAX_OPEN_CLAIMS}. Deliver or release
+                one to claim another. Three at a time, not three a day.
               </p>
             </>
           ) : (

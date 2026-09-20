@@ -84,8 +84,7 @@ export default function MapView({
         <div className="empty" role="status">
           <p className="empty__title">No open pickups right now</p>
           <p className="empty__sub">
-            New listings appear here the moment a store posts one — no refresh
-            needed.
+            New listings show up here as stores post them. No refresh.
           </p>
         </div>
       )}

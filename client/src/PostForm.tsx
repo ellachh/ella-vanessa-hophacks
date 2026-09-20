@@ -173,7 +173,7 @@ export default function PostForm({
           value={description}
           maxLength={MAX_DESCRIPTION}
           rows={3}
-          placeholder="About 20 day-old bagels and 6 loaves of sourdough"
+          placeholder="Roughly what, and how much"
           onChange={(e) => setDescription(e.target.value)}
         />
 
@@ -192,8 +192,8 @@ export default function PostForm({
           </button>
           <span className="suggest__hint">
             {photo && !description.trim()
-              ? 'Grok reads the photo — or write it yourself and skip this.'
-              : 'Jot it down roughly — or write it yourself and skip this.'}
+              ? 'Grok reads the photo. Or write your own.'
+              : 'Rough notes are fine. Or write your own.'}
           </span>
         </div>
 
