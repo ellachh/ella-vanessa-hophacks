@@ -46,7 +46,7 @@ was broken. A deployed link nobody has opened is how that recurs.
 Run this every time, even if "nothing changed since last time."
 
 - [ ] Both laptops on the **same** Maincloud module (`food-pickup`), not a local server
-- [ ] **Both volunteers have set names.** The race message reads
+- [ ] **Both of you have set names.** The race message reads
       "Vanessa claimed this first" by looking up the `user` table — without a
       name it degrades to "Someone else" and the best line in the demo lands flat
 - [ ] **Reset the board** — `spacetime call food-pickup reset_board`. Do this
@@ -54,7 +54,7 @@ Run this every time, even if "nothing changed since last time."
       with pickup windows measured from now. Without it, `expire_listings` will
       have deleted every unclaimed listing whose window has passed, leaving a
       board that is entirely claimed and that `seed_board` refuses to refill.
-- [ ] Ella holds **fewer than 3 open claims**, or every claim fails with the
+- [ ] Ella holds **fewer than 3 open claims** (User mode), or every claim fails with the
       ceiling message instead of the contention message
 - [ ] A third window open with `spacetime logs food-pickup -f`
 - [ ] Browser zoom up, DevTools **closed** (we open it deliberately, later)
@@ -120,18 +120,42 @@ you remembered to add.
 
 **"Isn't that just an `if` statement?"**
 Hand them the laptop. Select a listing → **"Prove the race →"** → **"Fire 50
-simultaneous claims"**. Verified result:
+simultaneous claims"**.
 
 > **50 fired · 1 succeeded · 49 rejected · 85ms**
 
-It releases its own claim, so they can run it as many times as they like. Two
-people tapping is an anecdote; 50 concurrent calls with one survivor is a
-demonstrated guarantee — and they triggered it, not us.
+**Have the log window facing them when you do it.** This matters more than the
+tally. A judge is right to be sceptical of a number the app prints about itself —
+it is indistinguishable from a hardcoded string. What they cannot dismiss is the
+database's own output streaming in a separate terminal:
 
-Watch for one thing so it doesn't surprise you: the contention feed shows **one**
+```
+claim ACCEPTED  listing=24577  holder=Identity(0xc200af83…)
+claim REJECTED  listing=24577  already held by Ella
+… 49 of those
+```
+
+Three surfaces the app does not control, all agreeing: **the server log**, **the
+other laptop** showing it claimed, and `spacetime sql` showing one holder. Offer
+the SQL if they press:
+
+```bash
+spacetime sql food-pickup "SELECT id, claimed_by FROM listing WHERE id = <id>"
+```
+
+**Strongest version, if you are deployed:** let them fire it from their own phone
+while you watch your laptop. The claim lands on your screen, from their device,
+with one winner.
+
+Watch for one thing so it does not surprise you: the contention feed shows **one**
 line, not fifty. The 49 rejections roll back their own broadcast rows. That is
-the transaction boundary again, and it is a good thing to point out rather than
-gloss over.
+the transaction boundary again, and it is worth pointing at rather than glossing
+over.
+
+**Known rough edge:** the stress test releases its own claim immediately, so the
+evidence disappears before anyone can inspect it. Fire it, then re-claim by hand
+if a judge wants to look — or fire it and immediately show the log, which
+persists.
 
 **"How do you stop someone claiming as another user?"**
 ```bash
@@ -180,3 +204,12 @@ kept the guarantee and dropped the feature.
 
 Not twice. The third run is where you find the thing that only breaks when
 you're talking.
+
+
+---
+
+## Wording on screen
+
+The UI says **User** and **Store**. The code still says `volunteer` and `donor`
+internally, and so do these docs where they describe the data model. Say what is
+on the screen when you are pointing at the screen.

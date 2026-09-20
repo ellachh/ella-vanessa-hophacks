@@ -1,32 +1,25 @@
-# Devpost writeup — draft
+# Devpost submission — paste-ready
 
-Paste into the standard Devpost fields. Written to be read by someone who
-cannot ask us a question, which is the opposite of the demo.
-
-**Before submitting:** screenshots of the board with 15 listings, the rejection
-toast mid-race, and the two-laptop setup. Repo link
-(`github.com/ellachh/scraps-hophacks` — the repo was renamed). Track:
-SpacetimeDB.
-
-**The counts below describe the published build with photos and profiles.** If
-that publish didn't happen and you're submitting from `main`, it is five tables,
-eleven reducers and one procedure, and the photo and shopfront paragraphs come
-out.
-
-**Lead with `docs/race.png`.** It is the technical argument in one picture, and
-a Devpost reader cannot ask us a question — so the thing we would say out loud
-has to be visible before they scroll. Upload it as the first image, above the
-screenshots.
+Two fields. Copy each block verbatim.
 
 ---
 
-![Two volunteers tap Claim on the same listing at the same instant. SpacetimeDB
-runs the two reducer calls as serialized transactions: the first reads
-claimed_by as empty and commits, the second reads it as already set and aborts.
-One volunteer gets the pickup; the other is told who beat her.](race.png)
+# FIELD 1 — Elevator pitch
 
-*Two taps, one instant, one winner — and no locking code anywhere in the
-project.*
+> A live food-rescue board for Baltimore where two people can never claim the
+> same pickup — because the database, not our code, decides who wins.
+
+*(Alternates, if the field is longer than expected:)*
+
+> Stores post surplus food, users claim it on a live map. When two people tap
+> the same pickup in the same instant, exactly one wins — no locking code, no
+> retries. Built on SpacetimeDB, where our logic runs inside the database.
+
+---
+
+# FIELD 2 — About the project
+
+*Everything below is Markdown. Paste as-is.*
 
 ---
 
@@ -34,110 +27,124 @@ project.*
 
 Food gets thrown out twenty minutes from someone who needs it, and the reason
 usually isn't supply — it's coordination. Two volunteers drive to the same
-restaurant; a third pickup expires because nobody knew it existed.
+restaurant. A third pickup expires because nobody knew it existed.
 
-That failure is a **contested-claim race**: two people acting on the same stale
-view of shared state. We wanted to build the version where that cannot happen,
-and it turned out the interesting part wasn't the app at all. It was what the
-database does when two people tap at the same instant.
+That failure has a name in computing: a **contested claim**. Two people acting
+on the same stale view of shared state. We wanted to build the version where it
+cannot happen — and once we started, the interesting part turned out not to be
+the app at all. It was what a database does when two people tap at the same
+instant.
 
 ## What it does
 
-Scraps is a live food-rescue board for Baltimore. Restaurants and grocers post
-surplus food; volunteer drivers see it on a map and claim pickups. Every other
-volunteer's screen updates instantly — no refresh, no polling.
+**Scraps** is a live food-rescue board for Baltimore.
 
-When two volunteers tap Claim on the same pickup in the same instant, exactly
-one wins. The other is told who beat them.
+Stores post surplus food with a photo, a pickup window and a location. Users see
+it on a map and claim what they can collect. Every other screen updates
+instantly — no refresh, no polling, no reload button anywhere in the product.
 
-Restaurants set up a shopfront once — name, a line about who they are, an
-address — and every pickup they post starts from it. They can photograph the
-food, and a volunteer sees the picture before deciding whether to drive. A
-volunteer who doesn't know what they want can just ask: "what's near me that's
-still warm?" is a question the database answers by reading the live board.
-
-That is easy to assert and hard to believe, so the app can prove it on demand:
-a button fires **50 concurrent claims** at one listing and reports the tally.
-Against the live database it comes back **1 succeeded, 49 rejected, 85ms** —
-no double-claim, no lost write, and no locking code on our side. A judge can
-press it themselves.
-
-Unclaimed listings whose pickup window passes delete themselves, on a timer
-inside the database, with no client involved.
+- **Two people tap Claim on the same pickup at the same moment → exactly one
+  wins.** The other is told who beat them, by name.
+- **Unclaimed pickups delete themselves** when their window passes, on a timer
+  running inside the database with no client involved.
+- **Ask Scraps** answers questions in plain language — *"something sweet"*,
+  *"what's closest"*, *"anything expiring soon"* — grounded in the pickups
+  actually on the board and how far each one is from you.
+- **Photograph the food and the description writes itself**, because the model
+  reads the picture.
+- **Set how far you'll travel** and the board narrows — not by filtering a list,
+  but by changing what the server sends you.
 
 ## How we built it
 
-**SpacetimeDB 2.10.1**, which isn't a database you put behind a server — it's a
+**SpacetimeDB 2.10.1.** It isn't a database you put behind a server — it's a
 database you put your server *inside*. Our application logic compiles to
 WebAssembly and runs in the database; clients subscribe to queries and the
-database pushes changes.
+database pushes changes to them.
 
-- **Backend**: one Rust module. Seven tables, fifteen reducers, three
-  procedures, one server-side view.
-- **Frontend**: React + TypeScript, Leaflet + OpenStreetMap.
-- **Data layer**: `useTable`, and nothing else. There is no fetching code
-  anywhere in the client — not one `fetch`, not one poll.
+- **Backend:** one Rust module. 8 tables, 17 reducers, 3 procedures, 1 view.
+- **Frontend:** React + TypeScript, Leaflet + OpenStreetMap.
+- **Data layer:** two `useTable` calls. That is the entire thing. **There is no
+  data-fetching code anywhere in this client** — no fetch, no polling, no cache,
+  no invalidation.
 
-We used five SpacetimeDB features that most projects won't touch:
+Neither of us had written Rust before this weekend. It turned out to matter less
+than we expected: a SpacetimeDB module is table structs and small mutation
+functions. No async, no lifetimes, no `Arc<Mutex<>>`. The hard parts of Rust
+never appeared.
 
-| Feature | What we do with it |
+### Using the database as a database, not as storage
+
+| Feature | Mechanism |
 |---|---|
-| Serialized reducers | The contested claim resolves with no locking code |
-| Scheduled tables | Unclaimed listings expire on a 30-second timer |
-| Event tables | Claims broadcast to every client without being stored |
-| Server-side views | "My pickups" is computed in the database, not in React |
-| Procedures | The database itself makes outbound HTTP calls |
+| One winner under contention | Reducers are serialized transactions |
+| Pickups expiring with nobody watching | Scheduled table |
+| Claims broadcast but never stored | Event table |
+| "Your pickups" computed server-side | `#[view]` |
+| Travel radius | A scoped subscription — a query, not a filter |
+| At most 3 open claims per user | Counted **inside** the transaction |
+| Calling a language model and a geocoder | Procedures |
 
-Plus a claim ceiling — three open pickups per volunteer — counted **inside the
-transaction**, so it can't be raced any more than the claim itself can.
+### The AI runs inside the database
 
-**The procedures are the part we'd point at first.** A reducer is deliberately
-deterministic: no clock, no filesystem, no network. Procedures are the sanctioned
-way out of that, and we used them for three things — a Grok assistant that reads
-the live board and answers "where's the nearest bagel pickup?", a drafter that
-turns a donor's three words into a listing description, and an address geocoder.
+`ask_scraps` is a `#[procedure]`, not a reducer. It opens a short transaction to
+read the open board and an API key, **closes it**, and only then makes an
+outbound HTTPS request to xAI's Grok. The browser never talks to the model — it
+asks the database, and the database calls out.
 
-The geocoder is the one that isn't a stylistic choice. OpenStreetMap's Nominatim
-asks callers to identify themselves with a descriptive `User-Agent`, and a
-browser **will not let a page set that header** — it's on the forbidden list and
-is dropped silently. A module can set it. So the lookup runs inside the database
-because that's the only place it can run correctly, which is a fairly literal
-demonstration of the thing SpacetimeDB is arguing for.
+That isn't a design flourish. **A reducer cannot do this, and should not.**
+Reducers must be deterministic — no network, no clock, no filesystem — and that
+is the *same* all-or-nothing property that makes two simultaneous claims resolve
+to exactly one winner. A reducer that could call an API could not offer that
+guarantee. Procedures exist for precisely the work reducers must refuse.
 
-The API key lives in a table declared without `public`, so it's skipped by
-codegen and unreachable over a subscription. Nothing is in the client bundle and
-nothing is in the repo.
+The API key lives in a private table. Private means no client can read it, and
+the code generator skips the table entirely — it prints
+`Skipping private tables during codegen: expiry_tick, secret` on every publish.
+Nothing secret reaches the browser bundle.
+
+The model only ever sees pickups that exist, with their real distances and real
+time remaining, and any listing id it returns is discarded unless it was in the
+list we supplied. It cannot recommend something it invented.
 
 ## Challenges we ran into
 
 **The transaction boundary ate a feature.** We added an event table to broadcast
 every claim attempt, won and lost, so contention would be visible to everyone
 rather than only to the loser. We wrote a comment predicting the losing write
-might not survive, then tested it against the live database: exactly one row
-arrived, `won: true`.
+might not survive — then tested it against the live database. Exactly one row
+arrived: `won: true`.
 
-A reducer returning `Err` aborts its entire transaction, and the insert goes
-with it. **The property that killed the feature is the same all-or-nothing
-guarantee that makes the contested claim correct.** We could recover the losses
-by returning `Ok` on every path and putting the outcome in the row — but that
-costs the rejection message on the loser's screen, which is the clearest thing
-in the demo. We kept the guarantee and dropped the feature.
+A reducer returning `Err` aborts its entire transaction, and the insert goes with
+it. **The property that killed the feature is the same guarantee that makes the
+claim correct.** We could get the losses back by always returning `Ok` and
+putting the outcome in the row, but that costs the rejection message on the
+loser's screen — the clearest thing in the whole demo. We kept the guarantee and
+dropped the feature.
 
-**Row-level security doesn't exist yet.** We planned a private table for donor
-address and phone, guarded by `#[client_visibility_filter]`. It compiles. It
-publishes. Reading the crate source, it's behind an `unstable` feature and
-carries `// TODO: RLS filters are currently unimplemented, and are not
-enforced.` We cut the table rather than ship a security claim with nothing
-behind it.
+**Row-level security doesn't exist yet.** We planned a private table for store
+contact details behind `#[client_visibility_filter]`. It compiles. It publishes.
+Reading the crate source, it sits behind an `unstable` feature and carries
+`// TODO: RLS filters are currently unimplemented, and are not enforced`. We cut
+the table rather than ship a security claim with nothing behind it.
 
-**An `Option` column can't be an index-filter argument**, and a view can only
-start from an index — it can't scan. `claimed_by` was the natural key for "my
-pickups"; we index `completed` instead and narrow in Rust.
+**A browser cannot set `User-Agent`.** It's a forbidden header, dropped
+silently, no error. OpenStreetMap's Nominatim asks callers to identify
+themselves that way — so a browser-side geocode *cannot* comply, however it's
+written. A module can. That is the cleanest example in this project of logic
+living in the database because it has to, not because it reads well.
 
 **Our own scheduled reducer ate the demo board overnight.** We came back to six
-listings, all claimed — every unclaimed one had aged past its pickup window and
-been deleted exactly as designed. Correct behaviour, genuinely alarming at 3am.
-We added a `reset_board` reducer and put it in the rehearsal checklist.
+listings, all claimed — every unclaimed one had passed its pickup window and
+been deleted, exactly as designed. Correct behaviour, genuinely alarming at 3am.
+It is also the best evidence we have that the timer works, because nobody staged
+it.
+
+**Every SpacetimeDB example we found online was wrong.** The macro API moved
+between versions, and the npm package was renamed — the old name still resolves,
+but its final release is a stub depending on a dist-tag that doesn't exist, so
+installing it fails outright. The guidance shipped inside the template was the
+only source that matched the version we were on.
 
 ## Accomplishments we're proud of
 
@@ -145,50 +152,55 @@ We added a `reset_board` reducer and put it in the rehearsal checklist.
 retry loop, no version column. The contested claim is a four-line check-then-set
 that is correct because reducers are serialized transactions.
 
-We proved it rather than asserting it. Fifty concurrent claims fired at a single
-listing from one browser:
+And we proved it rather than asserting it. Fifty concurrent claims fired at one
+listing from a single browser:
 
 > **50 fired · 1 succeeded · 49 rejected · 85ms**
 
-One write survived. No locks, no retries, no double-claim. It's a button in the
-app, so a judge can press it themselves rather than take our word for it.
+It's a button in the app, so a judge can press it themselves — and the database's
+own log shows one `claim ACCEPTED` and forty-nine `claim REJECTED`, streaming
+from the server while it happens.
 
-We also killed two features on purpose. Under a judging criterion that reads
-*most polished*, a half-built feature is a visible defect, not evidence of
-ambition.
+We're also proud of three features we **deleted**: row-level security, the
+loss-broadcast, and a private contact table. Under a judging criterion that
+reads *most polished*, a half-built feature is a visible defect rather than
+evidence of ambition.
 
 ## What we learned
 
-Neither of us had written Rust. It turned out not to matter much: a SpacetimeDB
-module is table structs and small mutation functions — no async, no lifetimes,
-no `Arc<Mutex<>>`. About 400 lines total, and the hard parts of Rust never
-appeared.
+The big one was about where correctness lives. In a normal stack, "two people
+can't claim the same thing" is something you remember to implement. Here it's a
+property of the execution model, and the work is understanding that model rather
+than defending against it.
 
-The bigger lesson was about where correctness lives. In a normal stack, "two
-people can't claim the same thing" is something you remember to implement. Here
-it's a property of the execution model, and the work is understanding the model
-rather than defending against it.
-
-And the thing we'd tell anyone starting: **don't trust any SpacetimeDB example
-you find online.** The API moved between versions and the npm package was
-renamed — the old name still resolves but its last release is a broken stub.
-Every tutorial we found was wrong. The template's own shipped guidance was
-right.
+The smaller one: **test the thing you're about to claim.** Our best story this
+weekend — the event-table rollback — came from writing down a prediction and
+then checking it, and getting an answer that closed off a feature we'd already
+built.
 
 ## What's next
 
-**Row-level security**, when it lands. Every table we have is world-readable,
-which is correct for a public board and wrong for the donor contact details a
-real deployment needs.
-
-**Presence** — `client_connected` / `client_disconnected` are first-class
-lifecycle reducers, so showing which volunteers are online is nearly free.
-
-**Per-listing presence**, which is the MMO use case in miniature: seeing that
-someone else is looking at the pickup you're about to claim, before either of
-you taps.
+- **Row-level security**, when it lands. Every table we have is world-readable,
+  which is right for a public board and wrong for the contact details a real
+  deployment needs.
+- **Presence.** `client_connected` and `client_disconnected` are first-class
+  lifecycle reducers, so showing who's online is nearly free.
+- **Per-listing presence** — seeing that someone else is looking at the pickup
+  you're about to claim, *before* either of you taps. That's the MMO use case
+  SpacetimeDB was built for, in miniature.
 
 ## Built with
 
 `rust` · `spacetimedb` · `webassembly` · `typescript` · `react` · `vite` ·
-`leaflet` · `openstreetmap` · `grok` · `xai`
+`leaflet` · `openstreetmap` · `grok` · `xai` · `netlify`
+
+---
+
+## Before you submit
+
+- [ ] Screenshots: the full board, the rejection toast mid-race, the stress-test
+      tally, a listing with a photo
+- [ ] The Netlify link
+- [ ] The repo link
+- [ ] Track: **SpacetimeDB — Best Use of SpacetimeDB**
+- [ ] A demo video, **if HopHacks requires one** — check the rules
