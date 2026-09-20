@@ -1,19 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32"
      role="img" aria-label="Scraps">
   <!--
-    The board's own pin, not a borrowed logo. The teardrop is the same path as
-    client/src/pins.ts, so the tab matches what is on the map.
+    A red apple with a green leaf.
 
-    No crate glyph, deliberately. pins.ts notes that at 22px the interior is
-    about 8px and anything finer turns to mush; a favicon renders at 16, so the
-    silhouette has to carry it alone.
+    Drawn for 16px, which is the only size that matters on a tab: one
+    silhouette, one colour break, no interior detail. The leaf is the only
+    thing distinguishing this from a generic blob, so it is oversized relative
+    to a real apple on purpose.
 
-    The cream tile is there so the mark reads on a dark tab strip as well as a
-    light one — a bare orange pin on transparent disappears against some
-    browser themes.
+    The cream tile means it reads on a dark tab strip as well as a light one;
+    a bare mark on transparent disappears against some browser themes.
+
+    Red is #c2392c rather than a primary red: same warmth as the board's open
+    orange, so the tab and the app look like the same product. The green is
+    the "mine" colour from index.css.
+
+    NOTE: an XML comment cannot contain a double hyphen, so CSS custom
+    properties are named in prose here rather than written out.
   -->
   <rect width="32" height="32" rx="7" fill="#efebe2"/>
-  <g transform="translate(9.4 7) scale(0.6)" fill="#c9741a">
-    <path d="M11 0C4.93 0 0 4.93 0 11c0 7.8 11 19 11 19s11-11.2 11-19C22 4.93 17.07 0 11 0z"/>
-  </g>
+  <path d="M16 11.6c3.7-3.2 9.7-1.4 9.7 4.7 0 6.6-4.5 11.9-9.7 11.9S6.3 22.9 6.3 16.3c0-6.1 6-7.9 9.7-4.7z"
+        fill="#c2392c"/>
+  <path d="M16 11.8V7.2" stroke="#2f6b4b" stroke-width="1.9" stroke-linecap="round" fill="none"/>
+  <path d="M16.6 8.9c1.3-3 4.3-3.7 6.3-3.2-.3 3-3.1 4.8-6.3 3.2z" fill="#2f6b4b"/>
 </svg>
