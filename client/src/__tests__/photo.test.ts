@@ -1,3 +1,10 @@
+// Tests for photo.ts, the browser-side shrinking that runs before a photo is
+// uploaded.
+//
+// Only the pure parts are covered: the sizing arithmetic, and the two checks
+// that decide whether a data URI is storable. The canvas encode needs a real
+// browser, so it is exercised by hand rather than here.
+
 import { describe, expect, it } from 'vitest'
 
 import { MAX_PHOTO_CHARS, fitWithin, isAcceptedType, isWithinCap } from '../photo'

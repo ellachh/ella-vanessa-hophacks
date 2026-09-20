@@ -37,6 +37,9 @@ export default function PostForm({
   const [profiles] = useTable(tables.donorProfile)
   const mine = profiles.find((p) => sameIdentity(p.identity, identity))
 
+  // What the store types. `hours` becomes a pickup_by Timestamp on submit;
+  // storing the offset rather than an absolute time means a form left open for
+  // ten minutes still posts a full window.
   const [description, setDescription] = useState('')
   const [hours, setHours] = useState(4)
   const [photo, setPhoto] = useState('')

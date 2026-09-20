@@ -52,6 +52,8 @@ export default function DonorProfileForm({
   )
   const [photo, setPhoto] = useState(existingPhoto)
 
+  // Two separate in-flight flags: saving the profile, and looking up an
+  // address. They can overlap, and sharing one would disable the wrong button.
   const [busy, setBusy] = useState(false)
   const [looking, setLooking] = useState(false)
   // Bumping this pans the map. A geocoded address that silently moved a pin

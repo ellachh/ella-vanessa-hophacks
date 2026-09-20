@@ -1,3 +1,10 @@
+// Tests for radius.ts, the travel-distance filter.
+//
+// The subscription narrows the board with a bounding BOX, because the query
+// builder compares columns to numbers and has no trigonometry. withinRadius
+// then trims the box corners to a real circle over the few rows that survive.
+// The corner case at the bottom is the one that justifies having both.
+
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CENTER as C, milesFrom, withinRadius } from '../radius'

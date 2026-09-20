@@ -55,6 +55,13 @@ function Board() {
   const [listings] = useTable(listingsWithin(center, radius))
   const [users] = useTable(tables.user)
 
+  // Everything below is view state — which pin is open, which panel is showing,
+  // whether a modal is up. None of it is data. Data lives in the two
+  // subscriptions above and nowhere else.
+  //
+  // `mode` still says 'volunteer' and 'donor' although the buttons now read
+  // User and Store. The words in the database and in this union were left
+  // alone on purpose; see docs/CLAUDE.md.
   const [selectedId, setSelectedId] = useState<bigint | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
@@ -72,10 +79,16 @@ function Board() {
       ),
     [listings, center, radius],
   )
+  // The open pin, found in `board` rather than kept as its own copy. If the
+  // listing leaves the board — claimed by someone else, expired, delivered —
+  // this goes null and the panel empties on its own.
   const selected = useMemo(
     () => board.find((l) => l.id === selectedId) ?? null,
     [board, selectedId],
   )
+
+  // What this volunteer is holding. Drives the Your pickups list and the count
+  // that warns before the three-claim ceiling bites.
   const mine = useMemo(
     () => board.filter((l) => sameIdentity(l.claimedBy, identity)),
     [board, identity],
@@ -98,6 +111,9 @@ function Board() {
 
   return (
     <div className="app">
+      {/* Title, live counts, and the controls. The count changes meaning with
+          the mode: a user cares how many pickups are open, a store cares how
+          many of its own are up. */}
       <header className="app__header">
         <h1 className="app__title">Scraps</h1>
         <p className="app__tagline">Baltimore food rescue board</p>
@@ -108,6 +124,9 @@ function Board() {
         </span>
         <div className="app__actions">
           <GenerateScraps onError={setToast} />
+          {/* Two roles over one board. Nothing is verified here — it is a
+              different reading of rows we already hold, not a claim about who
+              anyone is. */}
           <div className="mode" role="group" aria-label="Act as">
             <button
               className={`mode__btn${mode === 'volunteer' ? ' mode__btn--on' : ''}`}

@@ -12,6 +12,14 @@ import { timeLeft, urgencyOf } from './pickupWindow'
 /** Downtown Baltimore — the whole demo is scoped to one city. */
 export const BALTIMORE: [number, number] = [39.2904, -76.6122]
 
+/**
+ * The map screen. Draws one pin per open listing and lets you select one.
+ *
+ * It holds no state of its own: the rows arrive already filtered from App, and
+ * clicking a pin reports the id upward. Everything here is a function of the
+ * rows, so a claim landing from another laptop redraws the pin with no extra
+ * wiring.
+ */
 export default function MapView({
   listings,
   users,
@@ -31,11 +39,16 @@ export default function MapView({
   return (
     <div className="map-wrap">
       <MapContainer className="map" center={BALTIMORE} zoom={13} scrollWheelZoom>
+        {/* Map imagery from OpenStreetMap. No API key, no account, no
+            billing page — which is why this and not Mapbox or Google. */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={19}
         />
+        {/* One marker per listing. `state` picks the pin artwork: open, yours
+            or taken. `holder` looks up the claimant's display name so the popup
+            can say who has it rather than showing a hex identity. */}
         {listings.map((l) => {
           const state = listingState(l, me)
           const holder = l.claimedBy
@@ -73,6 +86,8 @@ export default function MapView({
             </Marker>
           )
         })}
+        {/* Overlays passed in from App. react-leaflet requires these to be
+            inside MapContainer, so they cannot be rendered as siblings. */}
         {children}
       </MapContainer>
 
@@ -80,6 +95,8 @@ export default function MapView({
           side panel. */}
       <ContentionFeed users={users} />
 
+      {/* Shown when the board is genuinely empty rather than still loading;
+          App does not render the map until the subscription is ready. */}
       {listings.length === 0 && (
         <div className="empty" role="status">
           <p className="empty__title">No open pickups right now</p>

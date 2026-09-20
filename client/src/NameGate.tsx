@@ -9,11 +9,16 @@ import { reducers } from './module_bindings'
  * the claim-race toast readable.
  */
 export default function NameGate({ onDone }: { onDone: () => void }) {
+  // Writes a row into the user table keyed on this client's identity.
   const setName = useReducer(reducers.setName)
+
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // On success App swaps this gate out for the board. On failure the message
+  // stays on the card rather than becoming a toast, because there is nothing
+  // behind the gate to read it against yet.
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
